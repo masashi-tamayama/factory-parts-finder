@@ -1,0 +1,24 @@
+# 秘密情報(接続文字列・パスワード・APIキー)。絶対にGitHubへ載せない
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node.js / フロントエンド
+node_modules/
+dist/
+
+# Vercel のローカル連携情報
+.vercel/
+
+# 作業用メモ(公開しない。公開用の資料は docs/ に別途作る)
+notes/
+
+# OS・エディタ
+.DS_Store
+.idea/
