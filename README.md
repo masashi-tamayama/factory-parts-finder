@@ -1,4 +1,4 @@
-# Portfolio
+# factory-parts-finder
 
 自動車製造ラインの部品(ボルト・ナット)検索アプリ(開発中)
 
