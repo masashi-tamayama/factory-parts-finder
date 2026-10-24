@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchVehiclePart, type Side, type VehiclePartDetail } from './api'
+import { BoltPanel } from './BoltPanel'
 
 type Props = {
   partId: number
@@ -20,6 +21,9 @@ const SIDE_LABELS: Record<Side, string> = { front: '表(外側)', back: '裏(内
 
 // 画像の高さの上限(100dvh から、ポップアップの見出し・切り替え・ボルトの行・余白を引いた分)
 const IMAGE_MAX_HEIGHT = 'calc(100dvh - 15rem)'
+
+// 画像の幅の上限を決めるための、横方向の余白の合計: 画面の端の余白(2rem × 2)+ パネルの内側の余白(1.5rem × 2)+ 画像と詳細パネルの間(1.5rem)+ 詳細パネル(18rem)
+const CHROME_WIDTH = '4rem - 3rem - 1.5rem - 18rem'
 
 function defaultSide(part: VehiclePartDetail): Side {
   return part.mounts.some((mount) => mount.side === 'front') ? 'front' : 'back'
@@ -57,14 +61,8 @@ export function PartDialog({ partId, side, mountId, onSelectSide, onSelectMount,
   const mounts = part ? part.mounts.filter((mount) => mount.side === activeSide) : []
   const selectedMount = mounts.find((mount) => mount.id === mountId)
 
-  let status = ''
-  if (part) {
-    status = selectedMount
-      ? `選択中のボルト: ${selectedMount.bolt.name}`
-      : mounts.length === 0
-        ? 'この面には、ボルトがありません'
-        : 'ボルトの印を押してください'
-  }
+  // ボルトがない面だけ、画像の下に 1 行の案内を出す(行の場所は、最初から確保する)
+  const noBolts = part !== null && mounts.length === 0
 
   return (
     <dialog
@@ -88,59 +86,62 @@ export function PartDialog({ partId, side, mountId, onSelectSide, onSelectMount,
           ✕
         </button>
 
-        <div
-          className="flex flex-col gap-3"
-          style={{ width: `min(calc(100vw - 6rem), calc(${IMAGE_MAX_HEIGHT} * 1.5))` }}
-        >
-          <h2 id="part-dialog-title" className="h-8 text-2xl leading-8 font-bold">
-            {part?.name ?? ''}
-          </h2>
+        <div className="flex gap-6">
+          <div
+            className="flex flex-col gap-3"
+            style={{ width: `min(calc(${IMAGE_MAX_HEIGHT} * 1.5), calc(100vw - ${CHROME_WIDTH}))` }}
+          >
+            <h2 id="part-dialog-title" className="h-8 text-2xl leading-8 font-bold">
+              {part?.name ?? ''}
+            </h2>
 
-          {/* 表 / 裏の切り替え(選択中 = 紺で塗る、非選択 = 白に紺の枠) */}
-          <div role="group" aria-label="表裏の切り替え" className="flex overflow-hidden rounded-lg border border-navy-800">
-            {(['front', 'back'] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={value === activeSide}
-                disabled={!part}
-                onClick={() => onSelectSide(value)}
-                className="h-11 flex-1 cursor-pointer bg-white text-base font-bold text-navy-800 hover:bg-mist-100 active:bg-mist-200 aria-pressed:bg-navy-800 aria-pressed:text-white"
-              >
-                {SIDE_LABELS[value]}
-              </button>
-            ))}
+            {/* 表 / 裏の切り替え(選択中 = 紺で塗る、非選択 = 白に紺の枠) */}
+            <div role="group" aria-label="表裏の切り替え" className="flex overflow-hidden rounded-lg border border-navy-800">
+              {(['front', 'back'] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={value === activeSide}
+                  disabled={!part}
+                  onClick={() => onSelectSide(value)}
+                  className="h-11 flex-1 cursor-pointer bg-white text-base font-bold text-navy-800 hover:bg-mist-100 active:bg-mist-200 aria-pressed:bg-navy-800 aria-pressed:text-white"
+                >
+                  {SIDE_LABELS[value]}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative w-full" style={{ aspectRatio: '3 / 2' }}>
+              {imagePath && (
+                <img src={imagePath} alt={`${part?.name}(${SIDE_LABELS[activeSide]})`} className="absolute inset-0 size-full object-contain" />
+              )}
+              {!part && (
+                <p
+                  role={current?.status === 'error' ? 'alert' : undefined}
+                  className="absolute inset-0 flex items-center justify-center text-navy-800"
+                >
+                  {current?.status === 'error' ? current.message : '読み込み中…'}
+                </p>
+              )}
+              {/* ボルトの印。位置は、画像に対する割合(ボルトの頭の中心)。押す前は透明で、ボルトの絵をそのまま見せる。色が出るのは、ホバー(マウスのある環境)・押している間・選択中だけ */}
+              {mounts.map((mount) => (
+                <button
+                  key={mount.id}
+                  type="button"
+                  title={mount.bolt.name}
+                  aria-label={mount.bolt.name}
+                  aria-pressed={mount.id === mountId}
+                  onClick={() => onSelectMount(mount.id)}
+                  className="absolute size-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full transition-colors hover:bg-accent-500/40 hover:ring-2 hover:ring-accent-600 focus-visible:ring-2 focus-visible:ring-accent-600 active:bg-accent-500/60 aria-pressed:bg-accent-500/50 aria-pressed:ring-2 aria-pressed:ring-accent-600"
+                  style={{ left: `${mount.x * 100}%`, top: `${mount.y * 100}%` }}
+                />
+              ))}
+            </div>
+
+            <p className="h-5 text-sm leading-5 text-navy-700">{noBolts ? 'この面には、ボルトがありません' : ''}</p>
           </div>
 
-          <div className="relative w-full" style={{ aspectRatio: '3 / 2' }}>
-            {imagePath && (
-              <img src={imagePath} alt={`${part?.name}(${SIDE_LABELS[activeSide]})`} className="absolute inset-0 size-full object-contain" />
-            )}
-            {!part && (
-              <p
-                role={current?.status === 'error' ? 'alert' : undefined}
-                className="absolute inset-0 flex items-center justify-center text-navy-800"
-              >
-                {current?.status === 'error' ? current.message : '読み込み中…'}
-              </p>
-            )}
-            {/* ボルトの印。位置は、画像に対する割合(ボルトの頭の中心)。押す前は透明で、ボルトの絵をそのまま見せる。色が出るのは、ホバー(マウスのある環境)・押している間・選択中だけ */}
-            {mounts.map((mount) => (
-              <button
-                key={mount.id}
-                type="button"
-                title={mount.bolt.name}
-                aria-label={mount.bolt.name}
-                aria-pressed={mount.id === mountId}
-                onClick={() => onSelectMount(mount.id)}
-                className="absolute size-7 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full transition-colors hover:bg-accent-500/40 hover:ring-2 hover:ring-accent-600 focus-visible:ring-2 focus-visible:ring-accent-600 active:bg-accent-500/60 aria-pressed:bg-accent-500/50 aria-pressed:ring-2 aria-pressed:ring-accent-600"
-                style={{ left: `${mount.x * 100}%`, top: `${mount.y * 100}%` }}
-              />
-            ))}
-          </div>
-
-          {/* ボルトの詳細パネルは、4 段階目で作る。それまでは、押せたことを確かめる 1 行(場所は最初から確保する) */}
-          <p className="h-5 text-sm leading-5 text-navy-700">{status}</p>
+          <BoltPanel boltId={selectedMount?.bolt.id ?? null} />
         </div>
       </div>
     </dialog>

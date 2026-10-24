@@ -76,3 +76,36 @@ export async function fetchVehiclePart(
   }
   return response.json()
 }
+
+// ボルトが置かれている部品棚と、棚の中のマス(段・列)。map_x、map_y は、工場マップの画像の上の位置(割合)
+export type ShelfPlacement = {
+  parts_shelf_id: number
+  zone_name: string
+  address_code: string
+  shelf_no: string
+  map_x: number
+  map_y: number
+  shelf_rows: number
+  shelf_cols: number
+  slot_row: number
+  slot_col: number
+}
+
+export type BoltDetail = {
+  id: number
+  part_number: string
+  name: string
+  spec: string | null
+  image_path: string
+  supplier_name: string
+  back_number: string
+  shelves: ShelfPlacement[]
+}
+
+export async function fetchBolt(boltId: number, signal: AbortSignal): Promise<BoltDetail> {
+  const response = await fetch(`/api/bolts/${boltId}`, { signal })
+  if (!response.ok) {
+    throw new Error(`ボルトの詳細の取得に失敗しました(${response.status})`)
+  }
+  return response.json()
+}
