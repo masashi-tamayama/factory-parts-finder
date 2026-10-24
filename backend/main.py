@@ -96,6 +96,7 @@ class SimilarBolt(BaseModel):
     supplier_name: str
     back_number: str
     difference_note: str | None
+    shelves: list[ShelfPlacement]  # 間違えたときに、おおよその場所が分かるように、類似ボルトの置き場所も返す
 
 
 class BoltDetail(BaseModel):
@@ -211,6 +212,28 @@ def get_vehicle_part(part_id: int):
     return part
 
 
+def fetch_shelf_placements(cur, bolt_ids: list[int]) -> dict[int, list[dict]]:
+    """ボルトごとの、置かれている部品棚(工区 → 所番地 → 棚番号の順)。棚に置かれていないボルトは、キー自体がない"""
+    cur.execute(
+        """
+        SELECT bs.bolt_id, ps.id AS parts_shelf_id, z.name AS zone_name, a.code AS address_code, ps.shelf_no,
+               ps.map_x::float AS map_x, ps.map_y::float AS map_y,
+               ps.shelf_rows, ps.shelf_cols, bs.slot_row, bs.slot_col
+        FROM bolt_shelf bs
+        JOIN parts_shelf ps ON ps.id = bs.parts_shelf_id
+        JOIN address a ON a.id = ps.address_id
+        JOIN zone z ON z.id = a.zone_id
+        WHERE bs.bolt_id = ANY(%s)
+        ORDER BY z.id, a.code, ps.shelf_no
+        """,
+        (bolt_ids,),
+    )
+    placements: dict[int, list[dict]] = {}
+    for row in cur.fetchall():
+        placements.setdefault(row.pop("bolt_id"), []).append(row)
+    return placements
+
+
 @app.get("/api/bolts/{bolt_id}", response_model=BoltDetail)
 def get_bolt(bolt_id: int):
     with get_cursor() as cur:
@@ -227,22 +250,7 @@ def get_bolt(bolt_id: int):
         bolt = cur.fetchone()
         if bolt is None:
             raise HTTPException(status_code=404, detail="bolt not found")
-        # 置かれている部品棚(工区 → 所番地 → 棚番号の順)
-        cur.execute(
-            """
-            SELECT ps.id AS parts_shelf_id, z.name AS zone_name, a.code AS address_code, ps.shelf_no,
-                   ps.map_x::float AS map_x, ps.map_y::float AS map_y,
-                   ps.shelf_rows, ps.shelf_cols, bs.slot_row, bs.slot_col
-            FROM bolt_shelf bs
-            JOIN parts_shelf ps ON ps.id = bs.parts_shelf_id
-            JOIN address a ON a.id = ps.address_id
-            JOIN zone z ON z.id = a.zone_id
-            WHERE bs.bolt_id = %s
-            ORDER BY z.id, a.code, ps.shelf_no
-            """,
-            (bolt_id,),
-        )
-        bolt["shelves"] = cur.fetchall()
+        bolt["shelves"] = fetch_shelf_placements(cur, [bolt_id]).get(bolt_id, [])
         # 類似ボルトは 1 組を 1 行で持つので、どちら側から見ても出るように、相手の側を取り出す
         cur.execute(
             """
@@ -256,7 +264,11 @@ def get_bolt(bolt_id: int):
             """,
             {"id": bolt_id},
         )
-        bolt["similar_bolts"] = cur.fetchall()
+        similar_bolts = cur.fetchall()
+        placements = fetch_shelf_placements(cur, [similar["id"] for similar in similar_bolts])
+        for similar in similar_bolts:
+            similar["shelves"] = placements.get(similar["id"], [])
+        bolt["similar_bolts"] = similar_bolts
     return bolt
 
 

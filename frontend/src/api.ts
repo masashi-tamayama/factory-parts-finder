@@ -91,6 +91,18 @@ export type ShelfPlacement = {
   slot_col: number
 }
 
+// 見た目や置き場所が似ていて、間違えやすいボルト(違いの説明つき)
+export type SimilarBolt = {
+  id: number
+  part_number: string
+  name: string
+  image_path: string
+  supplier_name: string
+  back_number: string
+  difference_note: string | null
+  shelves: ShelfPlacement[]
+}
+
 export type BoltDetail = {
   id: number
   part_number: string
@@ -100,6 +112,7 @@ export type BoltDetail = {
   supplier_name: string
   back_number: string
   shelves: ShelfPlacement[]
+  similar_bolts: SimilarBolt[]
 }
 
 export async function fetchBolt(boltId: number, signal: AbortSignal): Promise<BoltDetail> {

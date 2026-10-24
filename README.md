@@ -17,7 +17,7 @@ API の説明ページ(FastAPI の自動生成)は、`/api/docs` で見られま
 | `GET /api/vehicles` | 車両の一覧 |
 | `GET /api/vehicles/{id}/parts` | 車両の部位の一覧と、車両画像の上の押せる範囲 |
 | `GET /api/vehicle-parts/{id}` | 部位の表・裏の画像と、ボルトの取り付け位置 |
-| `GET /api/bolts/{id}` | ボルトの情報、置かれている部品棚、類似ボルト(違いの説明つき) |
+| `GET /api/bolts/{id}` | ボルトの情報、置かれている部品棚、類似ボルト(違いの説明と、置かれている部品棚つき) |
 | `GET /api/parts-shelves/{id}` | 部品棚の段・列と、各マスのボルト |
 
 ## ドキュメント

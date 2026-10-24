@@ -22,8 +22,8 @@ const SIDE_LABELS: Record<Side, string> = { front: '表(外側)', back: '裏(内
 // 画像の高さの上限(100dvh から、ポップアップの見出し・切り替え・ボルトの行・余白を引いた分)
 const IMAGE_MAX_HEIGHT = 'calc(100dvh - 15rem)'
 
-// 画像の幅の上限を決めるための、横方向の余白の合計: 画面の端の余白(2rem × 2)+ パネルの内側の余白(1.5rem × 2)+ 画像と詳細パネルの間(1.5rem)+ 詳細パネル(18rem)
-const CHROME_WIDTH = '4rem - 3rem - 1.5rem - 18rem'
+// 画像の幅の上限を決めるための、横方向の余白の合計: 画面の端の余白(2rem × 2)+ パネルの内側の余白(1.5rem × 2)+ 画像と詳細パネルの間(1.5rem)+ 詳細パネル(20rem)
+const CHROME_WIDTH = '4rem - 3rem - 1.5rem - 20rem'
 
 function defaultSide(part: VehiclePartDetail): Side {
   return part.mounts.some((mount) => mount.side === 'front') ? 'front' : 'back'
