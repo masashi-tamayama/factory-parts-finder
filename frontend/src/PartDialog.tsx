@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { fetchVehiclePart, type Side, type VehiclePartDetail } from './api'
 import { BoltPanel } from './BoltPanel'
+import { Modal } from './Modal'
 
 type Props = {
   partId: number
@@ -31,14 +32,7 @@ function defaultSide(part: VehiclePartDetail): Side {
 }
 
 export function PartDialog({ partId, side, mountId, onSelectSide, onSelectMount, onOpenMap, onClose }: Props) {
-  const dialogRef = useRef<HTMLDialogElement>(null)
   const [loaded, setLoaded] = useState<LoadedPart | null>(null)
-
-  // <dialog> は、showModal() で開くと、背景を暗くし、Esc で閉じ、フォーカスを中に閉じ込めてくれる
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (dialog && !dialog.open) dialog.showModal()
-  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -66,85 +60,64 @@ export function PartDialog({ partId, side, mountId, onSelectSide, onSelectMount,
   const noBolts = part !== null && mounts.length === 0
 
   return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby="part-dialog-title"
-      onClose={onClose}
-      // 暗い背景(::backdrop)を押したときも閉じる
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose()
-      }}
-      className="m-auto max-h-none max-w-none overflow-visible bg-transparent p-0 backdrop:bg-navy-950/70"
-    >
-      <div className="relative rounded-2xl bg-white p-6 text-navy-900 shadow-2xl">
-        {/* 閉じるボタンは、パネルの右上の角に重ねる */}
-        <button
-          type="button"
-          aria-label="閉じる"
-          onClick={onClose}
-          className="absolute -top-4 -right-4 flex size-12 cursor-pointer items-center justify-center rounded-full border border-mist-300 bg-white text-2xl leading-none text-navy-800 shadow-md hover:bg-mist-100 active:bg-mist-200"
+    <Modal titleId="part-dialog-title" closeLabel="閉じる" onClose={onClose}>
+      <div className="flex gap-6">
+        <div
+          className="flex flex-col gap-3"
+          style={{ width: `min(calc(${IMAGE_MAX_HEIGHT} * 1.5), calc(100vw - ${CHROME_WIDTH}))` }}
         >
-          ✕
-        </button>
+          <h2 id="part-dialog-title" className="h-8 text-2xl leading-8 font-bold">
+            {part?.name ?? ''}
+          </h2>
 
-        <div className="flex gap-6">
-          <div
-            className="flex flex-col gap-3"
-            style={{ width: `min(calc(${IMAGE_MAX_HEIGHT} * 1.5), calc(100vw - ${CHROME_WIDTH}))` }}
-          >
-            <h2 id="part-dialog-title" className="h-8 text-2xl leading-8 font-bold">
-              {part?.name ?? ''}
-            </h2>
-
-            {/* 表 / 裏の切り替え(選択中 = 紺で塗る、非選択 = 白に紺の枠) */}
-            <div role="group" aria-label="表裏の切り替え" className="flex overflow-hidden rounded-lg border border-navy-800">
-              {(['front', 'back'] as const).map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={value === activeSide}
-                  disabled={!part}
-                  onClick={() => onSelectSide(value)}
-                  className="h-11 flex-1 cursor-pointer bg-white text-base font-bold text-navy-800 hover:bg-mist-100 active:bg-mist-200 aria-pressed:bg-navy-800 aria-pressed:text-white"
-                >
-                  {SIDE_LABELS[value]}
-                </button>
-              ))}
-            </div>
-
-            <div className="relative w-full" style={{ aspectRatio: '3 / 2' }}>
-              {imagePath && (
-                <img src={imagePath} alt={`${part?.name}(${SIDE_LABELS[activeSide]})`} className="absolute inset-0 size-full object-contain" />
-              )}
-              {!part && (
-                <p
-                  role={current?.status === 'error' ? 'alert' : undefined}
-                  className="absolute inset-0 flex items-center justify-center text-navy-800"
-                >
-                  {current?.status === 'error' ? current.message : '読み込み中…'}
-                </p>
-              )}
-              {/* ボルトの印。位置は、画像に対する割合(ボルトの頭の中心)。押す前は透明で、ボルトの絵をそのまま見せる。色が出るのは、ホバー(マウスのある環境)・押している間・選択中だけ */}
-              {mounts.map((mount) => (
-                <button
-                  key={mount.id}
-                  type="button"
-                  title={mount.bolt.name}
-                  aria-label={mount.bolt.name}
-                  aria-pressed={mount.id === mountId}
-                  onClick={() => onSelectMount(mount.id)}
-                  className="absolute size-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full transition-colors hover:bg-accent-500/40 hover:ring-2 hover:ring-accent-600 focus-visible:ring-2 focus-visible:ring-accent-600 active:bg-accent-500/60 aria-pressed:bg-accent-500/50 aria-pressed:ring-2 aria-pressed:ring-accent-600"
-                  style={{ left: `${mount.x * 100}%`, top: `${mount.y * 100}%` }}
-                />
-              ))}
-            </div>
-
-            <p className="h-5 text-sm leading-5 text-navy-700">{noBolts ? 'この面には、ボルトがありません' : ''}</p>
+          {/* 表 / 裏の切り替え(選択中 = 紺で塗る、非選択 = 白に紺の枠) */}
+          <div role="group" aria-label="表裏の切り替え" className="flex overflow-hidden rounded-lg border border-navy-800">
+            {(['front', 'back'] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={value === activeSide}
+                disabled={!part}
+                onClick={() => onSelectSide(value)}
+                className="h-11 flex-1 cursor-pointer bg-white text-base font-bold text-navy-800 hover:bg-mist-100 active:bg-mist-200 aria-pressed:bg-navy-800 aria-pressed:text-white"
+              >
+                {SIDE_LABELS[value]}
+              </button>
+            ))}
           </div>
 
-          <BoltPanel boltId={selectedMount?.bolt.id ?? null} onOpenMap={onOpenMap} />
+          <div className="relative w-full" style={{ aspectRatio: '3 / 2' }}>
+            {imagePath && (
+              <img src={imagePath} alt={`${part?.name}(${SIDE_LABELS[activeSide]})`} className="absolute inset-0 size-full object-contain" />
+            )}
+            {!part && (
+              <p
+                role={current?.status === 'error' ? 'alert' : undefined}
+                className="absolute inset-0 flex items-center justify-center text-navy-800"
+              >
+                {current?.status === 'error' ? current.message : '読み込み中…'}
+              </p>
+            )}
+            {/* ボルトの印。位置は、画像に対する割合(ボルトの頭の中心)。押す前は透明で、ボルトの絵をそのまま見せる。色が出るのは、ホバー(マウスのある環境)・押している間・選択中だけ */}
+            {mounts.map((mount) => (
+              <button
+                key={mount.id}
+                type="button"
+                title={mount.bolt.name}
+                aria-label={mount.bolt.name}
+                aria-pressed={mount.id === mountId}
+                onClick={() => onSelectMount(mount.id)}
+                className="absolute size-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full transition-colors hover:bg-accent-500/40 hover:ring-2 hover:ring-accent-600 focus-visible:ring-2 focus-visible:ring-accent-600 active:bg-accent-500/60 aria-pressed:bg-accent-500/50 aria-pressed:ring-2 aria-pressed:ring-accent-600"
+                style={{ left: `${mount.x * 100}%`, top: `${mount.y * 100}%` }}
+              />
+            ))}
+          </div>
+
+          <p className="h-5 text-sm leading-5 text-navy-700">{noBolts ? 'この面には、ボルトがありません' : ''}</p>
         </div>
+
+        <BoltPanel boltId={selectedMount?.bolt.id ?? null} onOpenMap={onOpenMap} />
       </div>
-    </dialog>
+    </Modal>
   )
 }

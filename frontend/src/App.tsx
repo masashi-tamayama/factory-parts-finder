@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { fetchVehicles, type Side, type Vehicle } from './api'
 import { MapDialog } from './MapDialog'
+import { NoticeDialog } from './NoticeDialog'
 import { PartDialog } from './PartDialog'
 import { VehicleView } from './VehicleView'
 
@@ -11,6 +12,7 @@ type ViewState = {
   side: Side | null // null = ボルトがある側を、最初に出す
   mountId: number | null
   map: { boltId: number; shelfId: number } | null // null = 工場マップは閉じている(開くと、ボルトのポップアップの上に重なる)
+  notice: boolean // 画像・データについての注記(フッターの「詳しく」)を開いているか
 }
 
 type Vehicles =
@@ -26,6 +28,7 @@ function App() {
     side: null,
     mountId: null,
     map: null,
+    notice: false,
   })
 
   useEffect(() => {
@@ -60,7 +63,7 @@ function App() {
             value={view.vehicleId ?? ''}
             disabled={items.length === 0}
             onChange={(event) =>
-              setView({ vehicleId: Number(event.target.value), partId: null, side: null, mountId: null, map: null })
+              setView({ vehicleId: Number(event.target.value), partId: null, side: null, mountId: null, map: null, notice: false })
             }
           >
             {items.map((vehicle) => (
@@ -121,9 +124,21 @@ function App() {
         />
       )}
 
-      <footer className="shrink-0 px-6 py-2 text-center text-xs text-mist-300">
-        車両・部品・ボルトの画像とデータは、すべて架空のものです(画像は AI で生成)
+      <footer className="flex h-10 shrink-0 items-center justify-center gap-2 px-6 text-xs text-mist-300">
+        <span>車両・部品・ボルトの画像とデータは、すべて架空のものです(画像は AI で生成)</span>
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          onClick={() => setView((current) => ({ ...current, notice: true }))}
+          className="h-8 cursor-pointer rounded px-2 text-xs font-bold text-white underline underline-offset-2 hover:bg-white/10 active:bg-white/20"
+        >
+          詳しく
+        </button>
       </footer>
+
+      {view.notice && (
+        <NoticeDialog onClose={() => setView((current) => ({ ...current, notice: false }))} />
+      )}
     </div>
   )
 }
