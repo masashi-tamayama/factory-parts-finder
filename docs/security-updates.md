@@ -9,6 +9,12 @@
 | 2026-10-23 | Node.js(開発・ビルド用) | 24.21.0 → **24.22.1** | Node.js 公式のセキュリティリリース(2026-10-21)への対応。修正は 10 件(深刻度 High 4、Medium 3、Low 3)。TLS のホスト名検証、`dns.resolve`、Brotli デコーダーなどの問題が含まれる。[公式の発表](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases) |
 | 2026-10-23 | Python(API 用) | 3.14.7 → **3.14.9** | Python 公式のセキュリティリリース(2026-10-21)への対応。同梱の pip と certifi の更新(認証局 eMudhra / emSign の証明書の問題への対応)など。直前の 3.14.8(2026-09-30)では、TLS の `SSLContext` に関するメモリの問題(CVE-2026-19445)などが修正されており、3.14.9 は、その後の修正も含む保守リリース。更新後に、5 つの API の動作と、依存パッケージの照合(0 件)を確認した。[3.14.9](https://www.python.org/downloads/release/python-3149/)、[3.14.8](https://www.python.org/downloads/release/python-3148/) |
 
+## 新しく導入したパッケージの確認
+
+| 日付 | 対象 | 導入前の確認 | 結果 |
+|---|---|---|---|
+| 2026-10-24 | Tailwind CSS(`tailwindcss`、`@tailwindcss/vite`)**4.3.3**(固定) | npm の最新版が 4.3.3(2026-07-16 公開)であること、`@tailwindcss/vite` が Vite 8 に対応していること(peerDependencies に `^8`)、GitHub の [Security advisories](https://github.com/tailwindlabs/tailwindcss/security/advisories) に公開された脆弱性がないこと、ライセンスが MIT であること、公式の[リリースノート](https://github.com/tailwindlabs/tailwindcss/releases)(4.3.0〜4.3.3)にセキュリティ修正・破壊的変更の記載がないこと、動作環境(Safari 16.4 以上、Chrome 111 以上、Firefox 128 以上。[公式](https://tailwindcss.com/docs/compatibility))を確認した | 導入前・導入後とも `npm audit`: 脆弱性 0 件。ビルドと lint も成功 |
+
 ## 確認のみ(更新不要だったもの)
 
 | 日付 | 対象 | 結果 |
