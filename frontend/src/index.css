@@ -7,6 +7,9 @@
   --color-navy-800: #14306b;
   --color-navy-700: #1d4287;
   --color-navy-600: #2a559f;
+  /* 押せる場所の色。車体の水色・紺と被らない、オレンジ系 */
+  --color-accent-500: #f97316;
+  --color-accent-600: #ea580c;
   --color-mist-50: #f7f8fa;
   --color-mist-100: #eef0f4;
   --color-mist-200: #e1e5eb;

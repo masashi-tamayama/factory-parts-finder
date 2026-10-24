@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { fetchVehicles, type Vehicle } from './api'
+import { VehicleView } from './VehicleView'
 
 // 「今の画面の状態」は、ここに 1 か所にまとめる(あとで URL に持たせる形に切り替えやすくするため)
 type ViewState = {
   vehicleId: number | null
+  partId: number | null
 }
 
 type Vehicles =
@@ -13,7 +15,7 @@ type Vehicles =
 
 function App() {
   const [vehicles, setVehicles] = useState<Vehicles>({ status: 'loading' })
-  const [view, setView] = useState<ViewState>({ vehicleId: null })
+  const [view, setView] = useState<ViewState>({ vehicleId: null, partId: null })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -21,7 +23,7 @@ function App() {
       .then((items) => {
         setVehicles({ status: 'ready', items })
         // 最初は、先頭の車両を選んでおく
-        setView((current) => ({ vehicleId: current.vehicleId ?? items[0]?.id ?? null }))
+        setView((current) => ({ ...current, vehicleId: current.vehicleId ?? items[0]?.id ?? null }))
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
@@ -46,7 +48,7 @@ function App() {
             className="h-11 min-w-56 rounded-lg border border-white/30 bg-navy-800 px-3 text-base text-white disabled:opacity-50"
             value={view.vehicleId ?? ''}
             disabled={items.length === 0}
-            onChange={(event) => setView({ vehicleId: Number(event.target.value) })}
+            onChange={(event) => setView({ vehicleId: Number(event.target.value), partId: null })}
           >
             {items.map((vehicle) => (
               <option key={vehicle.id} value={vehicle.id}>
@@ -71,16 +73,11 @@ function App() {
           </p>
         )}
         {selected && (
-          <figure className="relative flex max-h-full min-h-0 flex-col items-center py-4">
-            {/* 画像の背景が白一色なので、中央のエリアを白にして、画像の白い背景は multiply で溶け込ませる(円の装飾が、画像の四角で切れないように) */}
-            <img
-              src={selected.image_path}
-              alt={selected.name}
-              className="min-h-0 w-auto max-w-full flex-1 object-contain mix-blend-multiply"
-              style={{ aspectRatio: '3 / 2', maxHeight: 'calc(100dvh - 11rem)' }}
-            />
-            <figcaption className="pt-2 text-xl font-bold text-navy-900">{selected.name}</figcaption>
-          </figure>
+          <VehicleView
+            vehicle={selected}
+            selectedPartId={view.partId}
+            onSelectPart={(partId) => setView((current) => ({ ...current, partId }))}
+          />
         )}
       </main>
 
