@@ -3,7 +3,6 @@ import { fetchVehicleParts, type PartSummary, type Vehicle } from './api'
 
 type Props = {
   vehicle: Vehicle
-  selectedPartId: number | null
   onSelectPart: (partId: number) => void
 }
 
@@ -12,10 +11,10 @@ type LoadedParts =
   | { vehicleId: number; status: 'ready'; parts: PartSummary[] }
   | { vehicleId: number; status: 'error'; message: string }
 
-// 画像の高さの上限(100dvh から、ヘッダー・フッター・車名・選択中の部位の行・余白を引いた分)
-const IMAGE_MAX_HEIGHT = 'calc(100dvh - 12.5rem)'
+// 画像の高さの上限(100dvh から、ヘッダー・フッター・車名・余白を引いた分)
+const IMAGE_MAX_HEIGHT = 'calc(100dvh - 11rem)'
 
-export function VehicleView({ vehicle, selectedPartId, onSelectPart }: Props) {
+export function VehicleView({ vehicle, onSelectPart }: Props) {
   const [loaded, setLoaded] = useState<LoadedParts | null>(null)
 
   useEffect(() => {
@@ -57,9 +56,9 @@ export function VehicleView({ vehicle, selectedPartId, onSelectPart }: Props) {
             type="button"
             title={part.name}
             aria-label={part.name}
-            aria-pressed={part.id === selectedPartId}
+            aria-haspopup="dialog"
             onClick={() => onSelectPart(part.id)}
-            className="absolute cursor-pointer rounded-lg border-2 border-accent-500/70 bg-accent-500/5 transition-colors hover:border-accent-600 hover:bg-accent-500/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 active:bg-accent-500/45 aria-pressed:border-accent-600 aria-pressed:bg-accent-500/35"
+            className="absolute cursor-pointer rounded-lg border-2 border-accent-500/70 bg-accent-500/5 transition-colors hover:border-accent-600 hover:bg-accent-500/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 active:bg-accent-500/45"
             style={{
               left: `${part.area.x * 100}%`,
               top: `${part.area.y * 100}%`,
@@ -84,11 +83,6 @@ export function VehicleView({ vehicle, selectedPartId, onSelectPart }: Props) {
         )}
       </div>
       <figcaption className="pt-2 text-xl font-bold text-navy-900">{vehicle.name}</figcaption>
-      {/* 部位のポップアップは、3 段階目で作る。それまでは、押せたことを確かめるための表示。
-          押す前から 1 行分の場所を確保して、押したときに画面が動かないようにする */}
-      <p className="h-5 text-sm leading-5 text-navy-700">
-        選択中の部位: {parts.find((part) => part.id === selectedPartId)?.name ?? 'なし'}
-      </p>
     </figure>
   )
 }

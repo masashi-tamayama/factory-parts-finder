@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
-import { fetchVehicles, type Vehicle } from './api'
+import { fetchVehicles, type Side, type Vehicle } from './api'
+import { PartDialog } from './PartDialog'
 import { VehicleView } from './VehicleView'
 
 // 「今の画面の状態」は、ここに 1 か所にまとめる(あとで URL に持たせる形に切り替えやすくするため)
 type ViewState = {
   vehicleId: number | null
-  partId: number | null
+  partId: number | null // null = 部位のポップアップは閉じている
+  side: Side | null // null = ボルトがある側を、最初に出す
+  mountId: number | null
 }
 
 type Vehicles =
@@ -15,7 +18,12 @@ type Vehicles =
 
 function App() {
   const [vehicles, setVehicles] = useState<Vehicles>({ status: 'loading' })
-  const [view, setView] = useState<ViewState>({ vehicleId: null, partId: null })
+  const [view, setView] = useState<ViewState>({
+    vehicleId: null,
+    partId: null,
+    side: null,
+    mountId: null,
+  })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -48,7 +56,7 @@ function App() {
             className="h-11 min-w-56 rounded-lg border border-white/30 bg-navy-800 px-3 text-base text-white disabled:opacity-50"
             value={view.vehicleId ?? ''}
             disabled={items.length === 0}
-            onChange={(event) => setView({ vehicleId: Number(event.target.value), partId: null })}
+            onChange={(event) => setView({ vehicleId: Number(event.target.value), partId: null, side: null, mountId: null })}
           >
             {items.map((vehicle) => (
               <option key={vehicle.id} value={vehicle.id}>
@@ -75,11 +83,24 @@ function App() {
         {selected && (
           <VehicleView
             vehicle={selected}
-            selectedPartId={view.partId}
-            onSelectPart={(partId) => setView((current) => ({ ...current, partId }))}
+            onSelectPart={(partId) =>
+              setView((current) => ({ ...current, partId, side: null, mountId: null }))
+            }
           />
         )}
       </main>
+
+      {view.partId !== null && (
+        <PartDialog
+          key={view.partId}
+          partId={view.partId}
+          side={view.side}
+          mountId={view.mountId}
+          onSelectSide={(side) => setView((current) => ({ ...current, side, mountId: null }))}
+          onSelectMount={(mountId) => setView((current) => ({ ...current, mountId }))}
+          onClose={() => setView((current) => ({ ...current, partId: null, side: null, mountId: null }))}
+        />
+      )}
 
       <footer className="shrink-0 px-6 py-2 text-center text-xs text-mist-300">
         車両・部品・ボルトの画像とデータは、すべて架空のものです(画像は AI で生成)
