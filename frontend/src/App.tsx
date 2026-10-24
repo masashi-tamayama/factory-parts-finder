@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchVehicles, type Side, type Vehicle } from './api'
+import { MapDialog } from './MapDialog'
 import { PartDialog } from './PartDialog'
 import { VehicleView } from './VehicleView'
 
@@ -9,6 +10,7 @@ type ViewState = {
   partId: number | null // null = 部位のポップアップは閉じている
   side: Side | null // null = ボルトがある側を、最初に出す
   mountId: number | null
+  map: { boltId: number; shelfId: number } | null // null = 工場マップは閉じている(開くと、ボルトのポップアップの上に重なる)
 }
 
 type Vehicles =
@@ -23,6 +25,7 @@ function App() {
     partId: null,
     side: null,
     mountId: null,
+    map: null,
   })
 
   useEffect(() => {
@@ -56,7 +59,9 @@ function App() {
             className="h-11 min-w-56 rounded-lg border border-white/30 bg-navy-800 px-3 text-base text-white disabled:opacity-50"
             value={view.vehicleId ?? ''}
             disabled={items.length === 0}
-            onChange={(event) => setView({ vehicleId: Number(event.target.value), partId: null, side: null, mountId: null })}
+            onChange={(event) =>
+              setView({ vehicleId: Number(event.target.value), partId: null, side: null, mountId: null, map: null })
+            }
           >
             {items.map((vehicle) => (
               <option key={vehicle.id} value={vehicle.id}>
@@ -98,7 +103,21 @@ function App() {
           mountId={view.mountId}
           onSelectSide={(side) => setView((current) => ({ ...current, side, mountId: null }))}
           onSelectMount={(mountId) => setView((current) => ({ ...current, mountId }))}
-          onClose={() => setView((current) => ({ ...current, partId: null, side: null, mountId: null }))}
+          onOpenMap={(boltId, shelfId) => setView((current) => ({ ...current, map: { boltId, shelfId } }))}
+          onClose={() => setView((current) => ({ ...current, partId: null, side: null, mountId: null, map: null }))}
+        />
+      )}
+
+      {/* 工場マップは、ボルトのポップアップの上に重ねる。閉じると、ボルトのポップアップに戻る */}
+      {view.map && (
+        <MapDialog
+          key={view.map.boltId}
+          boltId={view.map.boltId}
+          shelfId={view.map.shelfId}
+          onSelectShelf={(shelfId) =>
+            setView((current) => (current.map ? { ...current, map: { ...current.map, shelfId } } : current))
+          }
+          onClose={() => setView((current) => ({ ...current, map: null }))}
         />
       )}
 

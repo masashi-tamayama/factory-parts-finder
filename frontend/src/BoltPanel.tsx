@@ -3,6 +3,8 @@ import { fetchBolt, type BoltDetail } from './api'
 
 type Props = {
   boltId: number | null
+  // 部品棚の場所の行を押したときに、その棚を選んだ状態で、工場マップを開く
+  onOpenMap: (boltId: number, shelfId: number) => void
 }
 
 // 取得した詳細は、どのボルトのものかを一緒に持つ(ボルトを切り替えた直後に、前のボルトが出ないようにするため)
@@ -10,7 +12,7 @@ type LoadedBolt =
   | { boltId: number; status: 'ready'; bolt: BoltDetail }
   | { boltId: number; status: 'error'; message: string }
 
-export function BoltPanel({ boltId }: Props) {
+export function BoltPanel({ boltId, onOpenMap }: Props) {
   const [loaded, setLoaded] = useState<LoadedBolt | null>(null)
 
   useEffect(() => {
@@ -70,7 +72,7 @@ export function BoltPanel({ boltId }: Props) {
               </dd>
             </dl>
 
-            {/* 部品棚の場所の表。5 段階目で、行を押すと工場マップに切り替わる入口にする */}
+            {/* 部品棚の場所の表。行を押すと、その棚を選んだ状態で、工場マップが開く(行全体が押せる。キーボード用に、最後の列に本物のボタンも置く) */}
             <table className="w-full text-left text-sm">
               <caption className="pb-1 text-left text-sm font-bold">部品棚の場所</caption>
               <thead className="text-xs text-navy-700">
@@ -79,16 +81,30 @@ export function BoltPanel({ boltId }: Props) {
                   <th scope="col" className="py-1 font-normal">所番地</th>
                   <th scope="col" className="py-1 font-normal">棚</th>
                   <th scope="col" className="py-1 font-normal">段・列</th>
+                  <th scope="col" className="py-1 font-normal"><span className="sr-only">工場マップ</span></th>
                 </tr>
               </thead>
               <tbody>
                 {bolt.shelves.map((shelf) => (
-                  <tr key={`${shelf.parts_shelf_id}-${shelf.slot_row}-${shelf.slot_col}`} className="border-t border-mist-200">
+                  <tr
+                    key={`${shelf.parts_shelf_id}-${shelf.slot_row}-${shelf.slot_col}`}
+                    onClick={() => onOpenMap(bolt.id, shelf.parts_shelf_id)}
+                    className="cursor-pointer border-t border-mist-200 hover:bg-mist-100 active:bg-mist-200"
+                  >
                     <td className="py-2">{shelf.zone_name}</td>
                     <td className="py-2">{shelf.address_code}</td>
                     <td className="py-2">{shelf.shelf_no}</td>
                     <td className="py-2">
                       {shelf.slot_row}段 {shelf.slot_col}列
+                    </td>
+                    <td className="py-1 text-right">
+                      <button
+                        type="button"
+                        aria-label={`${shelf.zone_name} ${shelf.address_code}-${shelf.shelf_no} を工場マップで見る`}
+                        className="h-9 cursor-pointer rounded-md px-2 text-xs font-bold whitespace-nowrap text-navy-800"
+                      >
+                        マップ ›
+                      </button>
                     </td>
                   </tr>
                 ))}

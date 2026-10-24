@@ -9,6 +9,7 @@ type Props = {
   mountId: number | null
   onSelectSide: (side: Side) => void
   onSelectMount: (mountId: number) => void
+  onOpenMap: (boltId: number, shelfId: number) => void
   onClose: () => void
 }
 
@@ -29,7 +30,7 @@ function defaultSide(part: VehiclePartDetail): Side {
   return part.mounts.some((mount) => mount.side === 'front') ? 'front' : 'back'
 }
 
-export function PartDialog({ partId, side, mountId, onSelectSide, onSelectMount, onClose }: Props) {
+export function PartDialog({ partId, side, mountId, onSelectSide, onSelectMount, onOpenMap, onClose }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [loaded, setLoaded] = useState<LoadedPart | null>(null)
 
@@ -141,7 +142,7 @@ export function PartDialog({ partId, side, mountId, onSelectSide, onSelectMount,
             <p className="h-5 text-sm leading-5 text-navy-700">{noBolts ? 'この面には、ボルトがありません' : ''}</p>
           </div>
 
-          <BoltPanel boltId={selectedMount?.bolt.id ?? null} />
+          <BoltPanel boltId={selectedMount?.bolt.id ?? null} onOpenMap={onOpenMap} />
         </div>
       </div>
     </dialog>

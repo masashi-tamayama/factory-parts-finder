@@ -122,3 +122,37 @@ export async function fetchBolt(boltId: number, signal: AbortSignal): Promise<Bo
   }
   return response.json()
 }
+
+// 部品棚の絵(段 × 列の格子)を描くための情報。埋まっているマスだけが入っている(空のマスは、画面側で描く)
+export type ShelfCell = {
+  slot_row: number
+  slot_col: number
+  bolt: {
+    id: number
+    name: string
+    part_number: string
+    image_path: string
+    supplier_name: string
+    back_number: string
+  }
+}
+
+export type ShelfDetail = {
+  id: number
+  zone_name: string
+  address_code: string
+  shelf_no: string
+  shelf_rows: number
+  shelf_cols: number
+  map_x: number
+  map_y: number
+  cells: ShelfCell[]
+}
+
+export async function fetchShelf(shelfId: number, signal: AbortSignal): Promise<ShelfDetail> {
+  const response = await fetch(`/api/parts-shelves/${shelfId}`, { signal })
+  if (!response.ok) {
+    throw new Error(`部品棚の取得に失敗しました(${response.status})`)
+  }
+  return response.json()
+}
