@@ -10,6 +10,10 @@
   /* 押せる場所の色。車体の水色・紺と被らない、オレンジ系 */
   --color-accent-500: #f97316;
   --color-accent-600: #ea580c;
+  /* 車両の画像の上の、押せる部位の枠。操作ガイド(オレンジ)と見分けがつくように、黄色にする */
+  --color-part-400: #facc15;
+  --color-part-500: #eab308;
+  --color-part-600: #ca8a04;
   --color-mist-50: #f7f8fa;
   --color-mist-100: #eef0f4;
   --color-mist-200: #e1e5eb;

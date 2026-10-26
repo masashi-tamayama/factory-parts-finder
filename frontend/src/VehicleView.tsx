@@ -4,6 +4,8 @@ import { fetchVehicleParts, type PartSummary, type Vehicle } from './api'
 type Props = {
   vehicle: Vehicle
   onSelectPart: (partId: number) => void
+  // 操作ガイドの手順 2 のとき true。押せる部位の枠を、脈打たせて目立たせる
+  highlight?: boolean
 }
 
 // 取得した部位は、どの車両のものかを一緒に持つ(車両を切り替えた直後に、前の車両の部位が出ないようにするため)
@@ -14,7 +16,7 @@ type LoadedParts =
 // 画像の高さの上限(100dvh から、ヘッダー・フッター・車名・余白を引いた分)
 const IMAGE_MAX_HEIGHT = 'calc(100dvh - 11rem)'
 
-export function VehicleView({ vehicle, onSelectPart }: Props) {
+export function VehicleView({ vehicle, onSelectPart, highlight }: Props) {
   const [loaded, setLoaded] = useState<LoadedParts | null>(null)
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export function VehicleView({ vehicle, onSelectPart }: Props) {
             aria-label={part.name}
             aria-haspopup="dialog"
             onClick={() => onSelectPart(part.id)}
-            className="absolute cursor-pointer rounded-lg border-2 border-accent-500/70 bg-accent-500/5 transition-colors hover:border-accent-600 hover:bg-accent-500/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 active:bg-accent-500/45"
+            className={`absolute cursor-pointer rounded-lg border-2 border-part-500 bg-part-400/10 transition-colors hover:border-part-600 hover:bg-part-400/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-part-600 active:bg-part-400/55 ${highlight ? 'animate-pulse ring-4 ring-part-400' : ''}`}
             style={{
               left: `${part.area.x * 100}%`,
               top: `${part.area.y * 100}%`,

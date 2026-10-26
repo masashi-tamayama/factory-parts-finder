@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { fetchVehiclePart, type Side, type VehiclePartDetail } from './api'
 import { BoltPanel } from './BoltPanel'
+import { GuideHint } from './Guide'
 import { Modal } from './Modal'
 
 type Props = {
@@ -12,6 +13,10 @@ type Props = {
   onSelectMount: (mountId: number) => void
   onOpenMap: (boltId: number, shelfId: number) => void
   onClose: () => void
+  // 操作ガイドの今の手順(null = 出さない)。この画面で使うのは、3(表裏とボルトの選択)、4(ボルトの情報)、5(「マップ」を押す)
+  guide: number | null
+  onGuideNext: () => void
+  onGuideSkip: () => void
 }
 
 // 取得した詳細は、どの部位のものかを一緒に持つ(部位を切り替えた直後に、前の部位が出ないようにするため)
@@ -31,7 +36,18 @@ function defaultSide(part: VehiclePartDetail): Side {
   return part.mounts.some((mount) => mount.side === 'front') ? 'front' : 'back'
 }
 
-export function PartDialog({ partId, side, mountId, onSelectSide, onSelectMount, onOpenMap, onClose }: Props) {
+export function PartDialog({
+  partId,
+  side,
+  mountId,
+  onSelectSide,
+  onSelectMount,
+  onOpenMap,
+  onClose,
+  guide,
+  onGuideNext,
+  onGuideSkip,
+}: Props) {
   const [loaded, setLoaded] = useState<LoadedPart | null>(null)
 
   useEffect(() => {
@@ -71,19 +87,22 @@ export function PartDialog({ partId, side, mountId, onSelectSide, onSelectMount,
           </h2>
 
           {/* 表 / 裏の切り替え(選択中 = 紺で塗る、非選択 = 白に紺の枠) */}
-          <div role="group" aria-label="表裏の切り替え" className="flex overflow-hidden rounded-lg border border-navy-800">
-            {(['front', 'back'] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={value === activeSide}
-                disabled={!part}
-                onClick={() => onSelectSide(value)}
-                className="h-11 flex-1 cursor-pointer bg-white text-base font-bold text-navy-800 hover:bg-mist-100 active:bg-mist-200 aria-pressed:bg-navy-800 aria-pressed:text-white"
-              >
-                {SIDE_LABELS[value]}
-              </button>
-            ))}
+          <div className="relative">
+            <div role="group" aria-label="表裏の切り替え" className="flex overflow-hidden rounded-lg border border-navy-800">
+              {(['front', 'back'] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={value === activeSide}
+                  disabled={!part}
+                  onClick={() => onSelectSide(value)}
+                  className="h-11 flex-1 cursor-pointer bg-white text-base font-bold text-navy-800 hover:bg-mist-100 active:bg-mist-200 aria-pressed:bg-navy-800 aria-pressed:text-white"
+                >
+                  {SIDE_LABELS[value]}
+                </button>
+              ))}
+            </div>
+            {guide === 3 && <GuideHint step={3} side="right" onSkip={onGuideSkip} />}
           </div>
 
           <div className="relative w-full" style={{ aspectRatio: '3 / 2' }}>
@@ -98,6 +117,10 @@ export function PartDialog({ partId, side, mountId, onSelectSide, onSelectMount,
                 {current?.status === 'error' ? current.message : '読み込み中…'}
               </p>
             )}
+            {/* 操作ガイド 4(情報を見てもらう)の吹き出し。右のパネルを隠さないように、画像の左下に出す(5 の吹き出しは、右のパネルの表のすぐ下) */}
+            {guide === 4 && (
+              <GuideHint step={4} parts="bubble" side="inside-bottom" nextLabel="次へ" onNext={onGuideNext} onSkip={onGuideSkip} />
+            )}
             {/* ボルトの印。位置は、画像に対する割合(ボルトの頭の中心)。押す前は透明で、ボルトの絵をそのまま見せる。色が出るのは、ホバー(マウスのある環境)・押している間・選択中だけ */}
             {mounts.map((mount) => (
               <button
@@ -107,7 +130,7 @@ export function PartDialog({ partId, side, mountId, onSelectSide, onSelectMount,
                 aria-label={mount.bolt.name}
                 aria-pressed={mount.id === mountId}
                 onClick={() => onSelectMount(mount.id)}
-                className="absolute size-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full transition-colors hover:bg-accent-500/40 hover:ring-2 hover:ring-accent-600 focus-visible:ring-2 focus-visible:ring-accent-600 active:bg-accent-500/60 aria-pressed:bg-accent-500/50 aria-pressed:ring-2 aria-pressed:ring-accent-600"
+                className={`absolute size-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full transition-colors hover:bg-accent-500/40 hover:ring-2 hover:ring-accent-600 focus-visible:ring-2 focus-visible:ring-accent-600 active:bg-accent-500/60 aria-pressed:bg-accent-500/50 aria-pressed:ring-2 aria-pressed:ring-accent-600 ${guide === 3 ? 'animate-pulse ring-4 ring-accent-500' : ''}`}
                 style={{ left: `${mount.x * 100}%`, top: `${mount.y * 100}%` }}
               />
             ))}
@@ -116,7 +139,12 @@ export function PartDialog({ partId, side, mountId, onSelectSide, onSelectMount,
           <p className="h-5 text-sm leading-5 text-navy-700">{noBolts ? 'この面には、ボルトがありません' : ''}</p>
         </div>
 
-        <BoltPanel boltId={selectedMount?.bolt.id ?? null} onOpenMap={onOpenMap} />
+        <BoltPanel
+          boltId={selectedMount?.bolt.id ?? null}
+          onOpenMap={onOpenMap}
+          guide={guide}
+          onGuideSkip={onGuideSkip}
+        />
       </div>
     </Modal>
   )

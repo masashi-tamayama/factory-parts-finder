@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchBolt, fetchShelf, type BoltDetail, type ShelfDetail } from './api'
+import { GuideHint } from './Guide'
 import { Modal } from './Modal'
 
 type Props = {
@@ -7,6 +8,10 @@ type Props = {
   shelfId: number
   onSelectShelf: (shelfId: number) => void
   onClose: () => void
+  // 操作ガイドの今の手順(null = 出さない)。この画面で使うのは 6(棚の詳細情報を確認する。最後の手順。棚の印を押しても、「完了」でも終わる)
+  guide: number | null
+  onGuideDone: () => void
+  onGuideSkip: () => void
 }
 
 // 取得した情報は、どのボルト・棚のものかを一緒に持つ(切り替えた直後に、前のものが出ないようにするため)
@@ -27,7 +32,7 @@ const MAP_MAX_HEIGHT = 'calc(100dvh - 11rem)'
 // 画像の幅の上限を決めるための、横方向の余白の合計: 画面の端の余白(2rem × 2)+ パネルの内側の余白(1.5rem × 2)+ 地図と棚のパネルの間(1.5rem)+ 棚のパネル(22rem)
 const CHROME_WIDTH = '4rem - 3rem - 1.5rem - 22rem'
 
-export function MapDialog({ boltId, shelfId, onSelectShelf, onClose }: Props) {
+export function MapDialog({ boltId, shelfId, onSelectShelf, onClose, guide, onGuideDone, onGuideSkip }: Props) {
   const [loadedBolt, setLoadedBolt] = useState<LoadedBolt | null>(null)
   const [loadedShelf, setLoadedShelf] = useState<LoadedShelf | null>(null)
 
@@ -107,9 +112,21 @@ export function MapDialog({ boltId, shelfId, onSelectShelf, onClose }: Props) {
                   aria-label={`${item.zone_name} 所番地 ${item.address_code} 棚 ${item.shelf_no}`}
                   aria-pressed={selected}
                   onClick={() => onSelectShelf(item.parts_shelf_id)}
-                  className="absolute size-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full bg-accent-500/30 ring-2 ring-white transition-colors hover:bg-accent-500/60 active:bg-accent-500/60 aria-pressed:ring-[3px] aria-pressed:ring-red-600"
+                  className={`absolute size-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full bg-accent-500/30 ring-2 ring-white transition-colors hover:bg-accent-500/60 active:bg-accent-500/60 aria-pressed:ring-[3px] aria-pressed:ring-red-600`}
                   style={{ left: `${item.map_x * 100}%`, top: `${item.map_y * 100}%` }}
-                />
+                >
+                  {/* 「ここにある」と分かるように、広がる輪を常に出す(動きを減らす設定の端末では、止める) */}
+                  <span aria-hidden className="pointer-events-none absolute -inset-2 rounded-full ring-4 ring-accent-500 motion-safe:animate-ping" />
+                  {/* 操作ガイド 6: 押す場所に、番号をつける */}
+                  {guide === 6 && (
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute -top-5 -left-5 flex size-7 items-center justify-center rounded-full bg-accent-600 text-sm font-bold text-white shadow-md"
+                    >
+                      6
+                    </span>
+                  )}
+                </button>
               )
             })}
           </div>
@@ -117,6 +134,10 @@ export function MapDialog({ boltId, shelfId, onSelectShelf, onClose }: Props) {
 
         {/* 部品棚のパネル。高さは、左のマップの列に合わせる(中身の長さで、ポップアップが画面からはみ出さないように) */}
         <aside aria-label="部品棚" className="relative w-88 shrink-0 rounded-xl bg-mist-50">
+          {/* 操作ガイド 6: 吹き出しは、パネルの空いた下の方に出す(脈打つ印は、左のマップの上) */}
+          {guide === 6 && (
+            <GuideHint step={6} parts="bubble" side="inside-bottom" nextLabel="完了" onNext={onGuideDone} onSkip={onGuideSkip} />
+          )}
           <div className="absolute inset-0 overflow-y-auto p-4">
             {!currentShelf && <p className="pt-2 text-sm text-navy-700">読み込み中…</p>}
             {currentShelf?.status === 'error' && (
