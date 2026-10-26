@@ -7,7 +7,7 @@ type Props = {
   willGuide: boolean
 }
 
-// 最初に開いたときに出す案内。初めて触る方(面接官・採用担当者)向けの、概要・想定機器・注記(文章は、README の「画像・データについて」と同じ。画像生成のツール名は「AI」)。使い方は、画面の上に出す操作ガイド(Guide.tsx)で案内する
+// 最初に開いたときに出す案内。初めて触る方(面接官・採用担当者)向けの、概要・想定機器・「リクエストの旅」の紹介・注記(文章は、README の「画像・データについて」と同じ。画像生成のツール名は「AI」)。使い方は、画面の上に出す操作ガイド(Guide.tsx)で案内する
 export function IntroDialog({ onStart, willGuide }: Props) {
   return (
     <Modal titleId="intro-dialog-title" closeLabel="閉じる" onClose={onStart}>
@@ -18,7 +18,7 @@ export function IntroDialog({ onStart, willGuide }: Props) {
 
         {/* 内容が多いので、低い画面では、案内の中だけがスクロールする */}
         <div className="mt-4 max-h-[calc(100dvh-12rem)] overflow-y-auto pr-2">
-          <div className="grid gap-x-8 gap-y-5 text-[0.9375rem] leading-relaxed md:grid-cols-2">
+          <div className="flex flex-col gap-6 text-[0.9375rem] leading-relaxed">
             <section className="flex flex-col gap-2">
               <h3 className="text-lg font-bold text-navy-800">どんなアプリか</h3>
               <p>自動車製造ラインで約 20 年働いてきた経験をもとに、現場で実際にあった困りごとを解決するために作りました。製造ラインを任されている管理者向けのシステムです。</p>
@@ -34,19 +34,25 @@ export function IntroDialog({ onStart, willGuide }: Props) {
               </ul>
               <p className="text-sm text-navy-700">スマートフォンの画面サイズでの使用は、想定していません。</p>
             </section>
-          </div>
 
-          <section className="mt-4 border-t border-mist-200 pt-3 text-sm">
-            <h3 className="mb-2 text-base font-bold text-navy-800">画像・データについて</h3>
-            <div className="flex flex-col gap-3 leading-relaxed">
+            <section className="flex flex-col gap-2">
+              <h3 className="text-lg font-bold text-navy-800">画面の裏側を見る</h3>
+              <p>
+                画面の上の「リクエストの旅」では、ボルトを押したときなどに、データが取り出される道を、アニメーションで見られます。ブラウザからサーバー、データベースまでを往復する様子を、実際のコードや SQL とあわせて確認できます。
+              </p>
+              <p className="text-sm text-navy-700">新しいタブで開きます。</p>
+            </section>
+
+            <section className="flex flex-col gap-2">
+              <h3 className="text-lg font-bold text-navy-800">画像・データについて</h3>
               <p>本アプリは、自動車製造ラインでの部品検索業務を想定して開発したポートフォリオ作品です。</p>
               <p>
                 登場する車両・部品・取り付け箇所は架空のものであり、画像素材は AI
                 の画像生成機能を使用して制作しました。実在する自動車メーカーおよび製品とは関係ありません。
               </p>
               <p>部品の規格・取り付け位置などの情報はデモ用であり、実際の製造作業には使用できません。</p>
-            </div>
-          </section>
+            </section>
+          </div>
         </div>
 
         <div className="mt-5 flex items-center justify-end gap-4">

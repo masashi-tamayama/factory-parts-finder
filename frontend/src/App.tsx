@@ -83,6 +83,17 @@ function App() {
       <header className="flex h-16 shrink-0 items-center justify-between px-6">
         <h1 className="text-lg font-bold tracking-wide">部品検索</h1>
         <div className="flex items-center gap-4">
+          {/* 画面の裏側(API の通り道)を図で見せる、単独のページ。アプリの状態を残すため、新しいタブで開く */}
+          <a
+            href="/request-journey.html"
+            target="_blank"
+            rel="noopener"
+            className="inline-flex h-11 items-center gap-1.5 rounded-lg border border-white/30 px-4 text-sm font-bold hover:bg-white/10 active:bg-white/20"
+          >
+            リクエストの旅
+            <span aria-hidden>↗</span>
+            <span className="sr-only">(新しいタブで開きます)</span>
+          </a>
           <button
             type="button"
             aria-haspopup="dialog"

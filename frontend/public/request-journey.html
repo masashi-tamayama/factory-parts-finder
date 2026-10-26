@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>:root { color-scheme: light; } body { margin: 0; } [hidden] { display: none !important; }</style>
+<title>リクエストの旅</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap">
+<style>
+  /* 構成: 上に操作、中央に 4 つの拠点とボール(往路は上の線、復路は下の線)、下に「いまの場所の説明とコード」と全ステップの一覧 */
+  :root {
+    --bg: #f3f5fa;
+    --surface: #ffffff;
+    --surface-2: #eef1f8;
+    --line: #d3d9e8;
+    --fg: #141a2c;
+    --muted: #586179;
+    --req: #2563eb;
+    --res: #0c8a60;
+    --req-glow: rgba(37, 99, 235, 0.28);
+    --res-glow: rgba(12, 138, 96, 0.28);
+    --c-browser: #0c8a60;
+    --c-edge: #2563eb;
+    --c-api: #a8680c;
+    --c-db: #d03e28;
+    --ball: #f5a30a;
+    --code-bg: #f7f8fc;
+    --hl: rgba(245, 163, 10, 0.18);
+    --btn: #e4e8f3;
+    --btn-on: #141a2c;
+    --btn-on-fg: #ffffff;
+    --font-body: 'IBM Plex Sans JP', 'Hiragino Sans', 'Yu Gothic', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0a0c13;
+      --surface: #111522;
+      --surface-2: #171c2c;
+      --line: #262c40;
+      --fg: #e7eaf5;
+      --muted: #8d95ad;
+      --req: #5b9cff;
+      --res: #34d399;
+      --req-glow: rgba(91, 156, 255, 0.35);
+      --res-glow: rgba(52, 211, 153, 0.35);
+      --c-browser: #34d399;
+      --c-edge: #6aa5ff;
+      --c-api: #f2b441;
+      --c-db: #f4745c;
+      --ball: #ffd84a;
+      --code-bg: #0c0f1a;
+      --hl: rgba(255, 216, 74, 0.14);
+      --btn: #1b2133;
+      --btn-on: #e7eaf5;
+      --btn-on-fg: #0a0c13;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0a0c13;
+    --surface: #111522;
+    --surface-2: #171c2c;
+    --line: #262c40;
+    --fg: #e7eaf5;
+    --muted: #8d95ad;
+    --req: #5b9cff;
+    --res: #34d399;
+    --req-glow: rgba(91, 156, 255, 0.35);
+    --res-glow: rgba(52, 211, 153, 0.35);
+    --c-browser: #34d399;
+    --c-edge: #6aa5ff;
+    --c-api: #f2b441;
+    --c-db: #f4745c;
+    --ball: #ffd84a;
+    --code-bg: #0c0f1a;
+    --hl: rgba(255, 216, 74, 0.14);
+    --btn: #1b2133;
+    --btn-on: #e7eaf5;
+    --btn-on-fg: #0a0c13;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.7;
+    padding-block: 24px 40px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  .wrap > * { min-width: 0; }
+  h1 { font-size: 26px; line-height: 1.3; margin: 0; letter-spacing: 0.02em; text-wrap: balance; }
+  .back { display: inline-flex; align-items: center; min-height: 36px; margin-bottom: 6px; color: var(--muted); font-size: 14px; text-decoration: none; }
+  .back:hover { color: var(--fg); text-decoration: underline; }
+  .backmsg { margin: 0 0 8px; font-size: 13px; color: var(--c-api); }
+  .lead { margin: 4px 0 0; color: var(--muted); font-size: 14px; max-width: 62ch; }
+  code { font-family: var(--font-mono); font-size: 0.88em; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+
+  button, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--req); outline-offset: 2px; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; }
+  .group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
+  .group > .lbl { font-size: 12px; color: var(--muted); margin-right: 2px; }
+  .chipbtn, .seg button, .tp button, .tp select {
+    background: var(--btn); border: 1px solid transparent; border-radius: 8px;
+    min-height: 36px; padding: 4px 12px; font-size: 14px;
+  }
+  .chipbtn[aria-selected="true"], .seg button[aria-pressed="true"] {
+    background: var(--btn-on); color: var(--btn-on-fg); font-weight: 500;
+  }
+  .tp button:hover, .chipbtn:hover, .seg button:hover { border-color: var(--muted); }
+  .tp .primary { background: var(--btn-on); color: var(--btn-on-fg); font-weight: 500; min-width: 96px; }
+  .tp select { padding-right: 6px; }
+
+  /* 図 */
+  .scroller { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+  .board { position: relative; min-width: 760px; aspect-ratio: 810 / 330; --move: 800ms; }
+  .board > svg.lanes { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .station {
+    position: absolute; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2);
+    display: flex; flex-direction: column; align-items: center; padding-top: 9px;
+    transition: border-color 0.3s, box-shadow 0.3s; text-align: center;
+  }
+  .station::before, .station::after { content: ""; position: absolute; left: 10px; right: 10px; border-top: 1px dashed var(--line); }
+  .station::before { top: 34.78%; }
+  .station::after { top: 78.26%; }
+  .station.on { border-color: var(--c); box-shadow: 0 0 0 1px var(--c), 0 0 24px -8px var(--c); }
+  .station .icon { width: 28px; height: 28px; stroke: var(--c); fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .station .name { font-weight: 700; font-size: 14.5px; line-height: 1.3; margin-top: 1px; }
+  .station .role { font-size: 11px; color: var(--muted); line-height: 1.3; }
+  .station .file { position: absolute; bottom: 8px; font: 500 10.5px var(--font-mono); color: var(--muted); }
+  .glabel { position: absolute; transform: translateX(-50%); font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+  .glabel.q { color: var(--req); }
+  .glabel.r { color: var(--res); }
+
+  .ball {
+    position: absolute; z-index: 3; width: 18px; height: 18px; border-radius: 50%; background: var(--ball);
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 0 4px var(--glow), 0 0 18px 2px var(--glow);
+    transition: left var(--move) cubic-bezier(0.5, 0, 0.2, 1), top var(--move) cubic-bezier(0.5, 0, 0.2, 1), box-shadow 0.3s;
+  }
+  .ball.req { --glow: var(--req-glow); }
+  .ball.res { --glow: var(--res-glow); }
+
+  .chip {
+    position: absolute; top: 6px; z-index: 4; max-width: min(360px, 92%);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px;
+    font-size: 12px; line-height: 1.5; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.35);
+    transition: left var(--move) cubic-bezier(0.5, 0, 0.2, 1);
+  }
+  .chip::after {
+    content: ""; position: absolute; left: var(--ax, 20px); bottom: -5px; width: 8px; height: 8px;
+    background: var(--surface); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    transform: translateX(-50%) rotate(45deg);
+  }
+  .chip .f { font: 500 12px var(--font-mono); color: var(--c-api); margin-right: 6px; }
+  .chip .t { font-weight: 500; }
+  .chip .m { display: block; font: 11px var(--font-mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .scrub { display: flex; gap: 12px; align-items: center; }
+  .scrub input { flex: 1; min-width: 0; accent-color: var(--ball); height: 28px; }
+  .scrub .count { font: 500 13px var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* 下半分 */
+  .lower { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .detail { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.06em; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c, var(--muted)); flex: none; }
+  .detail h2 { margin: 0; font-size: 19px; line-height: 1.4; text-wrap: balance; }
+  .detail p { margin: 0; max-width: 62ch; }
+  .where { font: 500 12.5px var(--font-mono); color: var(--c-api); overflow-wrap: anywhere; }
+  .code { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; padding: 8px 0; font: 12.5px/1.65 var(--font-mono); }
+  .code .row { display: flex; white-space: pre; width: max-content; min-width: 100%; padding-right: 12px; }
+  .code .ln { color: var(--muted); width: 3.4em; text-align: right; padding-right: 14px; flex: none; user-select: none; font-variant-numeric: tabular-nums; }
+  .code .row.hl { background: var(--hl); box-shadow: inset 3px 0 0 var(--ball); }
+  .code .sep { color: var(--muted); padding-left: 3.4em; user-select: none; }
+  .msg { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; border-top: 1px dashed var(--line); padding-top: 10px; }
+  .msg .k { font-size: 12px; color: var(--muted); }
+  .msg .v { font: 500 12.5px var(--font-mono); overflow-wrap: anywhere; min-width: 0; }
+  .msg .v.req { color: var(--req); }
+  .msg .v.res { color: var(--res); }
+
+  .stepsbox { min-width: 0; }
+  .stepsbox h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 500; letter-spacing: 0.04em; }
+  .steps { position: relative; list-style: none; margin: 0; padding: 0; max-height: 440px; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+  .steps li + li { border-top: 1px solid var(--line); }
+  .steps button { display: flex; gap: 10px; align-items: baseline; width: 100%; text-align: left; background: transparent; border: 0; padding: 8px 12px; font-size: 13.5px; line-height: 1.5; }
+  .steps button:hover { background: var(--surface-2); }
+  .steps li.on button { background: var(--surface-2); font-weight: 500; box-shadow: inset 3px 0 0 var(--c); }
+  .steps .n { font: 12px var(--font-mono); color: var(--muted); width: 1.8em; flex: none; text-align: right; font-variant-numeric: tabular-nums; }
+  .steps .s { min-width: 0; }
+
+  .note { font-size: 12.5px; color: var(--muted); margin: 0; max-width: 80ch; }
+
+  @media (max-width: 820px) {
+    .lower { grid-template-columns: minmax(0, 1fr); }
+    h1 { font-size: 22px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ball, .chip { transition-duration: 1ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <a class="back" id="back" href="/">← アプリに戻る</a>
+    <p class="backmsg" id="backmsg" hidden>ブラウザが、このタブを閉じられませんでした。このタブを閉じて、アプリのタブに戻ってください。</p>
+    <h1>リクエストの旅</h1>
+    <p class="lead">部品検索アプリで 1 回の API 呼び出しが、ブラウザから DB まで往復する道を、ボールで追います。止まった場所で、実際のファイルと行が分かります。</p>
+  </header>
+
+  <div class="bar">
+    <div class="group" role="tablist" aria-label="追う操作" id="tabs"></div>
+    <div class="group seg" role="group" aria-label="動かしている場所">
+      <span class="lbl">環境</span>
+      <button type="button" id="env-prod" aria-pressed="true">本番</button>
+      <button type="button" id="env-local" aria-pressed="false">ローカル</button>
+    </div>
+  </div>
+
+  <div class="scroller" id="scroller">
+    <div class="board" id="board">
+      <svg class="lanes" id="lanes" viewBox="0 0 810 330" aria-hidden="true">
+        <defs>
+          <marker id="ah-req" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1 L9 5 L1 9 Z" style="fill:var(--req)"/></marker>
+          <marker id="ah-res" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1 L9 5 L1 9 Z" style="fill:var(--res)"/></marker>
+        </defs>
+      </svg>
+      <div class="chip" id="chip"></div>
+      <div class="ball req" id="ball"></div>
+    </div>
+  </div>
+
+  <div class="bar">
+    <div class="group tp">
+      <button type="button" id="prev" aria-label="1 つ前のステップ">◀ 戻る</button>
+      <button type="button" id="play" class="primary">一時停止</button>
+      <button type="button" id="next" aria-label="1 つ先のステップ">進む ▶</button>
+      <select id="speed" aria-label="再生の速さ">
+        <option value="0.5">0.5 倍速</option>
+        <option value="1" selected>1 倍速</option>
+        <option value="2">2 倍速</option>
+      </select>
+    </div>
+    <div class="scrub" style="flex:1; min-width: 220px;">
+      <input type="range" id="scrub" min="0" max="0" value="0" aria-label="ステップの位置">
+      <span class="count" id="count"></span>
+    </div>
+  </div>
+
+  <div class="lower">
+    <section class="detail" id="detail" aria-live="polite"></section>
+    <div class="stepsbox">
+      <h3>この操作の全ステップ</h3>
+      <ol class="steps" id="steps"></ol>
+    </div>
+  </div>
+
+  <p class="note">ボールは、上の線(青)で依頼を運び、下の線(緑)で結果を持ち帰ります。スペースで再生と一時停止を切り替えられます。</p>
+</div>
+
+<script>
+const SN = {"v.q1b": {"file": "backend/main.py", "hl": 147, "segs": [{"from": 146, "lines": ["        cur.execute(\"SELECT id, name, image_path FROM vehicle ORDER BY id\")", "        return cur.fetchall()"]}]}, "p.q1b": {"file": "backend/main.py", "hl": 154, "segs": [{"from": 153, "lines": ["        cur.execute(\"SELECT id, name, image_path FROM vehicle WHERE id = %s\", (vehicle_id,))", "        vehicle = cur.fetchone()", "        if vehicle is None:", "            raise HTTPException(status_code=404, detail=\"vehicle not found\")"]}]}, "p.q2b": {"file": "backend/main.py", "hl": 171, "segs": [{"from": 169, "lines": ["        parts = [", "            {\"id\": r[\"id\"], \"name\": r[\"name\"], \"area\": {k: r[k] for k in (\"x\", \"y\", \"w\", \"h\")}}", "            for r in cur.fetchall()", "        ]"]}]}, "d.q1b": {"file": "backend/main.py", "hl": 183, "segs": [{"from": 183, "lines": ["        part = cur.fetchone()", "        if part is None:", "            raise HTTPException(status_code=404, detail=\"vehicle part not found\")"]}]}, "d.q2b": {"file": "backend/main.py", "hl": 205, "segs": [{"from": 197, "lines": ["        part[\"mounts\"] = [", "            {", "                \"id\": r[\"id\"],", "                \"side\": r[\"side\"],", "                \"x\": r[\"x\"],", "                \"y\": r[\"y\"],", "                \"bolt\": {\"id\": r[\"bolt_id\"], \"name\": r[\"bolt_name\"], \"image_path\": r[\"bolt_image_path\"]},", "            }", "            for r in cur.fetchall()", "        ]"]}]}, "b.q1b": {"file": "backend/main.py", "hl": 245, "segs": [{"from": 245, "lines": ["        bolt = cur.fetchone()", "        if bolt is None:", "            raise HTTPException(status_code=404, detail=\"bolt not found\")"]}]}, "b.q2b": {"file": "backend/main.py", "hl": 227, "segs": [{"from": 226, "lines": ["    placements: dict[int, list[dict]] = {}", "    for row in cur.fetchall():", "        placements.setdefault(row.pop(\"bolt_id\"), []).append(row)", "    return placements"]}]}, "b.q3b": {"file": "backend/main.py", "hl": 262, "segs": [{"from": 262, "lines": ["        similar_bolts = cur.fetchall()"]}]}, "b.q4b": {"file": "backend/main.py", "hl": 264, "segs": [{"from": 264, "lines": ["        for similar in similar_bolts:", "            similar[\"shelves\"] = placements.get(similar[\"id\"], [])"]}]}, "s.q1b": {"file": "backend/main.py", "hl": 284, "segs": [{"from": 284, "lines": ["        shelf = cur.fetchone()", "        if shelf is None:", "            raise HTTPException(status_code=404, detail=\"parts shelf not found\")"]}]}, "s.q2b": {"file": "backend/main.py", "hl": 305, "segs": [{"from": 299, "lines": ["        shelf[\"cells\"] = [", "            {", "                \"slot_row\": r[\"slot_row\"],", "                \"slot_col\": r[\"slot_col\"],", "                \"bolt\": {k: r[k] for k in (\"id\", \"name\", \"part_number\", \"image_path\", \"back_number\", \"supplier_name\")},", "            }", "            for r in cur.fetchall()", "        ]"]}]}, "common.cursor": {"file": "backend/main.py", "hl": 21, "segs": [{"from": 18, "lines": ["@contextmanager", "def get_cursor():", "    # リクエストごとに接続する(サーバーレスでは、接続を持ち越せない。接続の使い回しは Neon のプールが行う)", "    with psycopg.connect(DATABASE_URL, row_factory=dict_row) as conn:", "        yield conn.cursor()"]}]}, "common.edge.prod": {"file": "vercel.json", "hl": 8, "segs": [{"from": 7, "lines": ["  \"rewrites\": [", "    { \"source\": \"/api/(.*)\", \"destination\": { \"service\": \"backend\" } },", "    { \"source\": \"/(.*)\", \"destination\": { \"service\": \"frontend\" } }"]}]}, "common.edge.local": {"file": "frontend/vite.config.ts", "hl": 11, "segs": [{"from": 9, "lines": ["    proxy: {", "      // 開発中は /api で始まる依頼を FastAPI に転送する(本番と同じ URL の形にするため)", "      '/api': 'http://127.0.0.1:8000',"]}]}, "v.trig": {"file": "frontend/src/App.tsx", "hl": 42, "segs": [{"from": 40, "lines": ["  useEffect(() => {", "    const controller = new AbortController()", "    fetchVehicles(controller.signal)"]}]}, "v.fetch": {"file": "frontend/src/api.ts", "hl": 9, "segs": [{"from": 8, "lines": ["export async function fetchVehicles(signal: AbortSignal): Promise<Vehicle[]> {", "  const response = await fetch('/api/vehicles', { signal })"]}]}, "v.route": {"file": "backend/main.py", "hl": 143, "segs": [{"from": 143, "lines": ["@app.get(\"/api/vehicles\", response_model=list[Vehicle])", "def list_vehicles():", "    with get_cursor() as cur:"]}]}, "v.q1": {"file": "backend/main.py", "hl": 146, "segs": [{"from": 146, "lines": ["        cur.execute(\"SELECT id, name, image_path FROM vehicle ORDER BY id\")"]}]}, "v.ret": {"file": "backend/main.py", "hl": 147, "segs": [{"from": 147, "lines": ["        return cur.fetchall()"]}]}, "v.client": {"file": "frontend/src/api.ts", "hl": 13, "segs": [{"from": 10, "lines": ["  if (!response.ok) {", "    throw new Error(`車両の取得に失敗しました(${response.status})`)", "  }", "  return response.json()"]}]}, "v.render": {"file": "frontend/src/App.tsx", "hl": 44, "segs": [{"from": 43, "lines": ["      .then((items) => {", "        setVehicles({ status: 'ready', items })"]}]}, "p.trig": {"file": "frontend/src/VehicleView.tsx", "hl": 24, "segs": [{"from": 22, "lines": ["  useEffect(() => {", "    const controller = new AbortController()", "    fetchVehicleParts(vehicle.id, controller.signal)"]}]}, "p.fetch": {"file": "frontend/src/api.ts", "hl": 34, "segs": [{"from": 30, "lines": ["export async function fetchVehicleParts(", "  vehicleId: number,", "  signal: AbortSignal,", "): Promise<PartSummary[]> {", "  const response = await fetch(`/api/vehicles/${vehicleId}/parts`, { signal })"]}]}, "p.route": {"file": "backend/main.py", "hl": 150, "segs": [{"from": 150, "lines": ["@app.get(\"/api/vehicles/{vehicle_id}/parts\", response_model=VehicleParts)", "def list_vehicle_parts(vehicle_id: int):", "    with get_cursor() as cur:"]}]}, "p.q1": {"file": "backend/main.py", "hl": 153, "segs": [{"from": 153, "lines": ["        cur.execute(\"SELECT id, name, image_path FROM vehicle WHERE id = %s\", (vehicle_id,))"]}]}, "p.q2": {"file": "backend/main.py", "hl": 158, "segs": [{"from": 158, "lines": ["        cur.execute(", "            \"\"\"", "            SELECT id, name,", "                   area_x::float AS x, area_y::float AS y,", "                   area_w::float AS w, area_h::float AS h", "            FROM vehicle_part", "            WHERE vehicle_id = %s", "            ORDER BY id", "            \"\"\",", "            (vehicle_id,),", "        )"]}]}, "p.ret": {"file": "backend/main.py", "hl": 173, "segs": [{"from": 173, "lines": ["    return {\"vehicle\": vehicle, \"parts\": parts}"]}]}, "p.client": {"file": "frontend/src/api.ts", "hl": 38, "segs": [{"from": 35, "lines": ["  if (!response.ok) {", "    throw new Error(`部位の取得に失敗しました(${response.status})`)", "  }", "  const body: { parts: PartSummary[] } = await response.json()", "  return body.parts"]}]}, "p.render": {"file": "frontend/src/VehicleView.tsx", "hl": 25, "segs": [{"from": 25, "lines": ["      .then((parts) => setLoaded({ vehicleId: vehicle.id, status: 'ready', parts }))"]}]}, "d.trig": {"file": "frontend/src/VehicleView.tsx", "hl": 62, "segs": [{"from": 62, "lines": ["            onClick={() => onSelectPart(part.id)}"]}]}, "d.caller": {"file": "frontend/src/PartDialog.tsx", "hl": 55, "segs": [{"from": 53, "lines": ["  useEffect(() => {", "    const controller = new AbortController()", "    fetchVehiclePart(partId, controller.signal)"]}]}, "d.fetch": {"file": "frontend/src/api.ts", "hl": 73, "segs": [{"from": 69, "lines": ["export async function fetchVehiclePart(", "  partId: number,", "  signal: AbortSignal,", "): Promise<VehiclePartDetail> {", "  const response = await fetch(`/api/vehicle-parts/${partId}`, { signal })"]}]}, "d.route": {"file": "backend/main.py", "hl": 176, "segs": [{"from": 176, "lines": ["@app.get(\"/api/vehicle-parts/{part_id}\", response_model=VehiclePartDetail)", "def get_vehicle_part(part_id: int):", "    with get_cursor() as cur:"]}]}, "d.q1": {"file": "backend/main.py", "hl": 179, "segs": [{"from": 179, "lines": ["        cur.execute(", "            \"SELECT id, name, vehicle_id, front_image_path, back_image_path FROM vehicle_part WHERE id = %s\",", "            (part_id,),", "        )"]}]}, "d.q2": {"file": "backend/main.py", "hl": 186, "segs": [{"from": 186, "lines": ["        cur.execute(", "            \"\"\"", "            SELECT m.id, m.side, m.x::float AS x, m.y::float AS y,", "                   b.id AS bolt_id, b.name AS bolt_name, b.image_path AS bolt_image_path", "            FROM bolt_mount m", "            JOIN bolt b ON b.id = m.bolt_id", "            WHERE m.vehicle_part_id = %s", "            ORDER BY m.side, m.y, m.x", "            \"\"\",", "            (part_id,),"]}]}, "d.ret": {"file": "backend/main.py", "hl": 207, "segs": [{"from": 207, "lines": ["    return part"]}]}, "d.client": {"file": "frontend/src/api.ts", "hl": 77, "segs": [{"from": 74, "lines": ["  if (!response.ok) {", "    throw new Error(`部位の詳細の取得に失敗しました(${response.status})`)", "  }", "  return response.json()"]}]}, "d.render": {"file": "frontend/src/PartDialog.tsx", "hl": 56, "segs": [{"from": 56, "lines": ["      .then((part) => setLoaded({ partId, status: 'ready', part }))"]}]}, "b.trig": {"file": "frontend/src/PartDialog.tsx", "hl": 132, "segs": [{"from": 132, "lines": ["                onClick={() => onSelectMount(mount.id)}"]}]}, "b.caller": {"file": "frontend/src/BoltPanel.tsx", "hl": 48, "segs": [{"from": 45, "lines": ["  useEffect(() => {", "    if (boltId === null) return", "    const controller = new AbortController()", "    fetchBolt(boltId, controller.signal)"]}]}, "b.fetch": {"file": "frontend/src/api.ts", "hl": 119, "segs": [{"from": 118, "lines": ["export async function fetchBolt(boltId: number, signal: AbortSignal): Promise<BoltDetail> {", "  const response = await fetch(`/api/bolts/${boltId}`, { signal })"]}]}, "b.route": {"file": "backend/main.py", "hl": 232, "segs": [{"from": 232, "lines": ["@app.get(\"/api/bolts/{bolt_id}\", response_model=BoltDetail)", "def get_bolt(bolt_id: int):", "    with get_cursor() as cur:"]}]}, "b.q1": {"file": "backend/main.py", "hl": 235, "segs": [{"from": 235, "lines": ["        cur.execute(", "            \"\"\"", "            SELECT b.id, b.part_number, b.name, b.spec, b.image_path, b.back_number,", "                   s.name AS supplier_name", "            FROM bolt b", "            JOIN supplier s ON s.id = b.supplier_id", "            WHERE b.id = %s", "            \"\"\",", "            (bolt_id,),", "        )"]}]}, "b.q2": {"file": "backend/main.py", "hl": 248, "segs": [{"from": 248, "lines": ["        bolt[\"shelves\"] = fetch_shelf_placements(cur, [bolt_id]).get(bolt_id, [])"]}, {"from": 212, "lines": ["    cur.execute(", "        \"\"\"", "        SELECT bs.bolt_id, ps.id AS parts_shelf_id, z.name AS zone_name, a.code AS address_code, ps.shelf_no,", "               ps.map_x::float AS map_x, ps.map_y::float AS map_y,", "               ps.shelf_rows, ps.shelf_cols, bs.slot_row, bs.slot_col", "        FROM bolt_shelf bs", "        JOIN parts_shelf ps ON ps.id = bs.parts_shelf_id", "        JOIN address a ON a.id = ps.address_id", "        JOIN zone z ON z.id = a.zone_id", "        WHERE bs.bolt_id = ANY(%s)", "        ORDER BY z.id, a.code, ps.shelf_no", "        \"\"\",", "        (bolt_ids,),", "    )"]}]}, "b.q3": {"file": "backend/main.py", "hl": 250, "segs": [{"from": 250, "lines": ["        cur.execute(", "            \"\"\"", "            SELECT o.id, o.part_number, o.name, o.image_path, s.name AS supplier_name,", "                   o.back_number, sb.difference_note", "            FROM similar_bolt sb", "            JOIN bolt o ON o.id = CASE WHEN sb.bolt_id = %(id)s THEN sb.similar_bolt_id ELSE sb.bolt_id END", "            JOIN supplier s ON s.id = o.supplier_id", "            WHERE sb.bolt_id = %(id)s OR sb.similar_bolt_id = %(id)s", "            ORDER BY o.id", "            \"\"\",", "            {\"id\": bolt_id},", "        )"]}]}, "b.q4": {"file": "backend/main.py", "hl": 263, "segs": [{"from": 263, "lines": ["        placements = fetch_shelf_placements(cur, [similar[\"id\"] for similar in similar_bolts])"]}, {"from": 212, "lines": ["    cur.execute(", "        \"\"\"", "        SELECT bs.bolt_id, ps.id AS parts_shelf_id, z.name AS zone_name, a.code AS address_code, ps.shelf_no,", "               ps.map_x::float AS map_x, ps.map_y::float AS map_y,", "               ps.shelf_rows, ps.shelf_cols, bs.slot_row, bs.slot_col", "        FROM bolt_shelf bs", "        JOIN parts_shelf ps ON ps.id = bs.parts_shelf_id", "        JOIN address a ON a.id = ps.address_id", "        JOIN zone z ON z.id = a.zone_id", "        WHERE bs.bolt_id = ANY(%s)", "        ORDER BY z.id, a.code, ps.shelf_no", "        \"\"\",", "        (bolt_ids,),", "    )"]}]}, "b.ret": {"file": "backend/main.py", "hl": 267, "segs": [{"from": 267, "lines": ["    return bolt"]}]}, "b.client": {"file": "frontend/src/api.ts", "hl": 123, "segs": [{"from": 120, "lines": ["  if (!response.ok) {", "    throw new Error(`ボルトの詳細の取得に失敗しました(${response.status})`)", "  }", "  return response.json()"]}]}, "b.render": {"file": "frontend/src/BoltPanel.tsx", "hl": 49, "segs": [{"from": 49, "lines": ["      .then((bolt) => setLoaded({ boltId, status: 'ready', bolt }))"]}]}, "s.trig": {"file": "frontend/src/BoltPanel.tsx", "hl": 120, "segs": [{"from": 120, "lines": ["                      onClick={() => onOpenMap(bolt.id, shelf.parts_shelf_id)}"]}]}, "s.caller": {"file": "frontend/src/MapDialog.tsx", "hl": 56, "segs": [{"from": 54, "lines": ["  useEffect(() => {", "    const controller = new AbortController()", "    fetchShelf(shelfId, controller.signal)"]}]}, "s.fetch": {"file": "frontend/src/api.ts", "hl": 153, "segs": [{"from": 152, "lines": ["export async function fetchShelf(shelfId: number, signal: AbortSignal): Promise<ShelfDetail> {", "  const response = await fetch(`/api/parts-shelves/${shelfId}`, { signal })"]}]}, "s.route": {"file": "backend/main.py", "hl": 270, "segs": [{"from": 270, "lines": ["@app.get(\"/api/parts-shelves/{shelf_id}\", response_model=ShelfDetail)", "def get_parts_shelf(shelf_id: int):", "    with get_cursor() as cur:"]}]}, "s.q1": {"file": "backend/main.py", "hl": 273, "segs": [{"from": 273, "lines": ["        cur.execute(", "            \"\"\"", "            SELECT ps.id, z.name AS zone_name, a.code AS address_code, ps.shelf_no,", "                   ps.shelf_rows, ps.shelf_cols, ps.map_x::float AS map_x, ps.map_y::float AS map_y", "            FROM parts_shelf ps", "            JOIN address a ON a.id = ps.address_id", "            JOIN zone z ON z.id = a.zone_id", "            WHERE ps.id = %s", "            \"\"\",", "            (shelf_id,),", "        )"]}]}, "s.q2": {"file": "backend/main.py", "hl": 287, "segs": [{"from": 287, "lines": ["        cur.execute(", "            \"\"\"", "            SELECT bs.slot_row, bs.slot_col,", "                   b.id, b.name, b.part_number, b.image_path, b.back_number, s.name AS supplier_name", "            FROM bolt_shelf bs", "            JOIN bolt b ON b.id = bs.bolt_id", "            JOIN supplier s ON s.id = b.supplier_id", "            WHERE bs.parts_shelf_id = %s", "            ORDER BY bs.slot_row, bs.slot_col", "            \"\"\",", "            (shelf_id,),", "        )"]}]}, "s.ret": {"file": "backend/main.py", "hl": 307, "segs": [{"from": 307, "lines": ["    return shelf"]}]}, "s.client": {"file": "frontend/src/api.ts", "hl": 157, "segs": [{"from": 154, "lines": ["  if (!response.ok) {", "    throw new Error(`部品棚の取得に失敗しました(${response.status})`)", "  }", "  return response.json()"]}]}, "s.render": {"file": "frontend/src/MapDialog.tsx", "hl": 57, "segs": [{"from": 57, "lines": ["      .then((shelf) => setLoadedShelf({ shelfId, status: 'ready', shelf }))"]}]}, "t.vehicle": {"file": "backend/schema.sql", "hl": 6, "segs": [{"from": 6, "lines": ["CREATE TABLE vehicle (", "    id          integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,", "    name        text NOT NULL,", "    image_path  text NOT NULL", ");"]}]}, "t.vehicle_part": {"file": "backend/schema.sql", "hl": 14, "segs": [{"from": 14, "lines": ["CREATE TABLE vehicle_part (", "    id                integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,", "    vehicle_id        integer NOT NULL REFERENCES vehicle(id) ON DELETE CASCADE,", "    name              text NOT NULL,", "    front_image_path  text NOT NULL,", "    back_image_path   text NOT NULL,", "    area_x            numeric(5, 4) NOT NULL,", "    area_y            numeric(5, 4) NOT NULL,", "    area_w            numeric(5, 4) NOT NULL,", "    area_h            numeric(5, 4) NOT NULL,", "    CONSTRAINT vehicle_part_area_check CHECK (", "        area_x >= 0 AND area_y >= 0 AND area_w > 0 AND area_h > 0", "        AND area_x + area_w <= 1 AND area_y + area_h <= 1", "    )", ");"]}]}, "t.zone": {"file": "backend/schema.sql", "hl": 31, "segs": [{"from": 31, "lines": ["CREATE TABLE zone (", "    id    integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,", "    name  text NOT NULL UNIQUE", ");"]}]}, "t.address": {"file": "backend/schema.sql", "hl": 37, "segs": [{"from": 37, "lines": ["CREATE TABLE address (", "    id       integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,", "    zone_id  integer NOT NULL REFERENCES zone(id),", "    code     text NOT NULL UNIQUE CHECK (code ~ '^[0-9]{2}$')", ");"]}]}, "t.parts_shelf": {"file": "backend/schema.sql", "hl": 46, "segs": [{"from": 46, "lines": ["CREATE TABLE parts_shelf (", "    id          integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,", "    address_id  integer NOT NULL REFERENCES address(id),", "    shelf_no    text NOT NULL CHECK (shelf_no ~ '^[0-9]{3}$'),", "    map_x       numeric(5, 4) NOT NULL CHECK (map_x BETWEEN 0 AND 1),", "    map_y       numeric(5, 4) NOT NULL CHECK (map_y BETWEEN 0 AND 1),", "    shelf_rows  integer NOT NULL CHECK (shelf_rows >= 1),", "    shelf_cols  integer NOT NULL CHECK (shelf_cols >= 1),", "    UNIQUE (address_id, shelf_no)", ");"]}]}, "t.supplier": {"file": "backend/schema.sql", "hl": 58, "segs": [{"from": 58, "lines": ["CREATE TABLE supplier (", "    id    integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,", "    name  text NOT NULL UNIQUE", ");"]}]}, "t.bolt": {"file": "backend/schema.sql", "hl": 64, "segs": [{"from": 64, "lines": ["CREATE TABLE bolt (", "    id           integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,", "    part_number  text NOT NULL UNIQUE", "                 CHECK (part_number ~ '^[0-9]{4}-[0-9]{4}-[0-9]{4}$'),", "    supplier_id  integer NOT NULL REFERENCES supplier(id),", "    back_number  text NOT NULL CHECK (back_number ~ '^[0-9]{3}$'),", "    name         text NOT NULL,", "    spec         text,", "    image_path   text NOT NULL,", "    UNIQUE (supplier_id, back_number)", ");"]}]}, "t.bolt_mount": {"file": "backend/schema.sql", "hl": 77, "segs": [{"from": 77, "lines": ["CREATE TABLE bolt_mount (", "    id               integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,", "    vehicle_part_id  integer NOT NULL REFERENCES vehicle_part(id) ON DELETE CASCADE,", "    side             text NOT NULL CHECK (side IN ('front', 'back')),", "    x                numeric(5, 4) NOT NULL CHECK (x BETWEEN 0 AND 1),", "    y                numeric(5, 4) NOT NULL CHECK (y BETWEEN 0 AND 1),", "    bolt_id          integer NOT NULL REFERENCES bolt(id)", ");"]}]}, "t.bolt_shelf": {"file": "backend/schema.sql", "hl": 88, "segs": [{"from": 88, "lines": ["CREATE TABLE bolt_shelf (", "    bolt_id         integer NOT NULL REFERENCES bolt(id) ON DELETE CASCADE,", "    parts_shelf_id  integer NOT NULL REFERENCES parts_shelf(id) ON DELETE CASCADE,", "    slot_row        integer NOT NULL CHECK (slot_row >= 1),", "    slot_col        integer NOT NULL CHECK (slot_col >= 1),", "    PRIMARY KEY (bolt_id, parts_shelf_id),", "    UNIQUE (parts_shelf_id, slot_row, slot_col)", ");"]}]}, "t.similar_bolt": {"file": "backend/schema.sql", "hl": 99, "segs": [{"from": 99, "lines": ["CREATE TABLE similar_bolt (", "    bolt_id          integer NOT NULL REFERENCES bolt(id) ON DELETE CASCADE,", "    similar_bolt_id  integer NOT NULL REFERENCES bolt(id) ON DELETE CASCADE,", "    difference_note  text,", "    PRIMARY KEY (bolt_id, similar_bolt_id),", "    CHECK (bolt_id < similar_bolt_id)", ");"]}]}};
+
+const W = 810, H = 330, CX = [88, 298, 508, 718], YQ = 150, YS = 250, BW = 120;
+const COLORS = ['var(--c-browser)', 'var(--c-edge)', 'var(--c-api)', 'var(--c-db)'];
+
+const ICONS = [
+  '<svg class="icon" viewBox="0 0 28 28"><rect x="3" y="5" width="22" height="18" rx="3"/><path d="M3 10h22"/><circle cx="6.5" cy="7.5" r="0.6"/><circle cx="9.5" cy="7.5" r="0.6"/></svg>',
+  '<svg class="icon" viewBox="0 0 28 28"><path d="M14 3v22"/><path d="M14 8h8l3 3-3 3h-8"/><path d="M14 16H6l-3 3 3 3h8"/></svg>',
+  '<svg class="icon" viewBox="0 0 28 28"><rect x="4" y="4" width="20" height="7" rx="2"/><rect x="4" y="12" width="20" height="7" rx="2"/><path d="M8 7.5h.01M8 15.5h.01M4 23h20"/></svg>',
+  '<svg class="icon" viewBox="0 0 28 28"><ellipse cx="14" cy="7" rx="9" ry="3.5"/><path d="M5 7v14c0 1.9 4 3.5 9 3.5s9-1.6 9-3.5V7"/><path d="M5 14c0 1.9 4 3.5 9 3.5s9-1.6 9-3.5"/></svg>',
+];
+
+function stations(env) {
+  const prod = env === 'prod';
+  return [
+    { name: 'ブラウザ', role: 'React · TypeScript', file: 'frontend/src/' },
+    prod ? { name: 'Vercel', role: '入口(転送)', file: 'vercel.json' }
+         : { name: 'Vite', role: '開発サーバー(転送)', file: 'vite.config.ts' },
+    { name: 'FastAPI', role: 'Python · API', file: 'backend/main.py' },
+    prod ? { name: 'Neon', role: 'PostgreSQL(本番)', file: 'schema.sql' }
+         : { name: 'PostgreSQL', role: 'ローカルの DB', file: 'schema.sql' },
+  ];
+}
+
+/* 追える操作(それぞれ、実際のコードの流れに対応) */
+const SC = [
+  {
+    id: 'v', tab: '車両の一覧', method: 'GET', url: '/api/vehicles', fn: 'fetchVehicles',
+    call: 'list_vehicles()',
+    trigger: { title: 'アプリを開く', text: '画面が最初に表示されたとき、`App` の `useEffect` が 1 回だけ動いて、API を呼びます。' },
+    queries: [
+      { title: '車両を全部読む', table: 'vehicle', sqlMsg: 'SELECT id, name, image_path FROM vehicle ORDER BY id',
+        send: 'テーブルの全行を、`id` の順に読む SQL です。', db: '`vehicle` テーブルを読みます。車両ごとに 1 行です。', rows: 'vehicle の全行', back: '`fetchall()` で、全部の行を、辞書(dict)のリストとして受け取ります。' },
+    ],
+    resp: '[{ "id": …, "name": …, "image_path": … }, …]',
+    retText: '`return cur.fetchall()` で返したリストを、FastAPI が `response_model=list[Vehicle]` の形か確かめて、JSON にします。',
+    clientNote: '', render: { text: '`setVehicles` で状態を更新すると、React が車両の選択や画像を描き直します。' },
+  },
+  {
+    id: 'p', tab: '車両の部位', method: 'GET', url: '/api/vehicles/1/parts', fn: 'fetchVehicleParts',
+    call: 'list_vehicle_parts(vehicle_id=1)', param: true,
+    trigger: { title: '車両の画像を表示する', text: '車両が選ばれると、`VehicleView` の `useEffect` が動いて、その車両の「押せる部位」を取りに行きます。' },
+    queries: [
+      { title: '車両を 1 行読む', table: 'vehicle', sqlMsg: 'SELECT id, name, image_path FROM vehicle WHERE id = 1',
+        send: '`%s` の部分に、URL から受け取った `vehicle_id` が入ります。値は SQL に直接は混ぜません(SQL インジェクションを防ぐため)。', db: '`vehicle` テーブルから、その `id` の 1 行を探します。', rows: 'vehicle の 1 行', back: '`fetchone()` で 1 行を受け取ります。無ければ、ここで `404`(main.py:156)を返して終わります。' },
+      { title: '部位を読む', table: 'vehicle_part', sqlMsg: 'SELECT id, name, area_x::float AS x, … FROM vehicle_part WHERE vehicle_id = 1',
+        send: 'その車両の部位を、押せる範囲(`area_x`、`area_y`、`area_w`、`area_h`)つきで読みます。`::float` は、数値型(numeric)を JSON の数値にするための変換です。', db: '`vehicle_part` テーブルから、`vehicle_id` が一致する行を集めます。', rows: 'vehicle_part の行(部位ごと)', back: '`fetchall()` で全部の行を受け取り、範囲を `{ x, y, w, h }` の形に組み直します(main.py:169-172)。' },
+    ],
+    resp: '{ "vehicle": {…}, "parts": [{ "id": …, "name": …, "area": { x, y, w, h } }, …] }',
+    retText: '`{"vehicle": …, "parts": …}` の辞書を返すと、FastAPI が `VehicleParts` の形か確かめて、JSON にします。',
+    clientNote: ' この API は `vehicle` と `parts` を返しますが、画面が使うのは `body.parts` だけです。',
+    render: { text: '`setLoaded` で状態を更新すると、車両の画像の上に、押せる範囲が並びます。' },
+  },
+  {
+    id: 'd', tab: '部位を押す', method: 'GET', url: '/api/vehicle-parts/1', fn: 'fetchVehiclePart',
+    call: 'get_vehicle_part(part_id=1)', param: true,
+    trigger: { title: '車両の部位を押す', text: '押せる範囲のボタンの `onClick` が動いて、どの部位かが決まり、部位の画面(`PartDialog`)が開きます。' },
+    caller: { title: '部位の画面が、API を呼ぶ', text: '`PartDialog` の `useEffect` が、選ばれた部位の番号(`partId`)で `fetchVehiclePart()` を呼びます。' },
+    queries: [
+      { title: '部位を 1 行読む', table: 'vehicle_part', sqlMsg: 'SELECT id, name, vehicle_id, front_image_path, … FROM vehicle_part WHERE id = 1',
+        send: '部位の名前と、表・裏の画像の場所を読みます。', db: '`vehicle_part` テーブルから、その `id` の 1 行を探します。', rows: 'vehicle_part の 1 行', back: '`fetchone()` で 1 行を受け取ります。無ければ `404`(main.py:185)を返します。' },
+      { title: 'ボルトの取り付け位置を読む', table: 'bolt_mount', sqlMsg: 'SELECT … FROM bolt_mount m JOIN bolt b ON b.id = m.bolt_id WHERE m.vehicle_part_id = 1',
+        send: '`JOIN` で、取り付け位置(`bolt_mount`)と、そのボルトの名前・画像(`bolt`)を、1 回の SQL でつなげて読みます。', db: '`bolt_mount` から、この部位の取り付け位置を集め、`bolt_id` で `bolt` テーブルとつなげます。', rows: 'ボルトの取り付け位置(表・裏、位置、ボルトの名前)', back: '`fetchall()` で受け取り、`mounts` のリストに組み直します(main.py:197-206)。' },
+    ],
+    resp: '{ "id": …, "name": …, "front_image_path": …, "back_image_path": …, "mounts": [{ "side", "x", "y", "bolt": {…} }, …] }',
+    retText: '`part` の辞書を返すと、FastAPI が `VehiclePartDetail` の形か確かめて、JSON にします。',
+    clientNote: '', render: { text: '`setLoaded` で状態を更新すると、部位の画像の上に、ボルトの位置が並びます。' },
+  },
+  {
+    id: 'b', tab: 'ボルトを押す', method: 'GET', url: '/api/bolts/1', fn: 'fetchBolt',
+    call: 'get_bolt(bolt_id=1)', param: true,
+    trigger: { title: 'ボルトの位置を押す', text: '部位の画像の上にある、ボルトの位置のボタンを押すと、どのボルトかが決まり、ボルトの画面(`BoltPanel`)が開きます。' },
+    caller: { title: 'ボルトの画面が、API を呼ぶ', text: '`BoltPanel` の `useEffect` が、選ばれたボルトの番号(`boltId`)で `fetchBolt()` を呼びます。' },
+    queries: [
+      { title: 'ボルトとメーカーを読む', table: 'bolt', sqlMsg: 'SELECT b.id, b.part_number, … s.name AS supplier_name FROM bolt b JOIN supplier s … WHERE b.id = 1',
+        send: 'ボルトの部品番号・名前・規格・画像・背番号と、メーカー名(`supplier`)を、`JOIN` で 1 回に読みます。', db: '`bolt` テーブルから 1 行を探し、`supplier_id` で `supplier` テーブルとつなげます。', rows: 'bolt の 1 行(メーカー名つき)', back: '`fetchone()` で 1 行を受け取ります。無ければ `404`(main.py:247)を返します。' },
+      { title: '置き場所(棚)を読む', table: 'bolt_shelf', sqlMsg: 'SELECT … FROM bolt_shelf bs JOIN parts_shelf ps … JOIN address a … JOIN zone z … WHERE bs.bolt_id = ANY([1])',
+        send: '`fetch_shelf_placements()` という関数が、ボルトの置き場所を読みます。棚 → 所番地 → 工区と、`JOIN` でたどります。', db: '`bolt_shelf`(ボルトと棚の対応)から、棚・所番地・工区の順にテーブルをたどります。', rows: '置き場所(工区、所番地、棚番号、段・列)', back: '`bolt_id` ごとにまとめて、このボルトの `shelves` にします。' },
+      { title: '類似ボルトを読む', table: 'similar_bolt', sqlMsg: 'SELECT o.id, o.part_number, … FROM similar_bolt sb JOIN bolt o ON o.id = CASE WHEN … WHERE sb.bolt_id = 1 OR sb.similar_bolt_id = 1',
+        send: '類似ボルトは、1 組を 1 行で持っています。どちら側から見ても出るように、`CASE` で「相手の側」を取り出します。', db: '`similar_bolt` から、このボルトが含まれる組を探し、相手のボルトと、そのメーカーをつなげます。', rows: '類似ボルト(違いの説明つき)', back: '類似ボルトの一覧を受け取ります。この後、それぞれの置き場所も読みます。' },
+      { title: '類似ボルトの置き場所を読む', table: 'bolt_shelf', sqlMsg: 'SELECT … FROM bolt_shelf bs JOIN … WHERE bs.bolt_id = ANY([2, 3, …])',
+        send: '同じ `fetch_shelf_placements()` を、類似ボルトの番号をまとめて渡して、もう一度呼びます。', db: '`bolt_shelf` から、類似ボルトすべての置き場所を、1 回の SQL で集めます。', rows: '類似ボルトの置き場所', back: '`similar_bolts` のそれぞれに、`shelves` を付けます(main.py:264-265)。' },
+    ],
+    resp: '{ "part_number": …, "name": …, "shelves": […], "similar_bolts": [{ …, "shelves": […] }, …] }',
+    retText: '`bolt` の辞書を返すと、FastAPI が `BoltDetail` の形か確かめて、JSON にします。',
+    clientNote: '', render: { text: '`setLoaded` で状態を更新すると、ボルトの画像・メーカー・置き場所・類似ボルトが表示されます。' },
+  },
+  {
+    id: 's', tab: '棚の場所を押す', method: 'GET', url: '/api/parts-shelves/1', fn: 'fetchShelf',
+    call: 'get_parts_shelf(shelf_id=1)', param: true,
+    trigger: { title: 'ボルトの置き場所の行を押す', text: 'ボルトの画面にある、置き場所の表の行を押すと、工場マップの画面(`MapDialog`)が開きます。マップの画面は、開くときにボルトの情報(`/api/bolts/…`)も取り直しますが、ここでは棚の分(`/api/parts-shelves/…`)を追います。' },
+    caller: { title: 'マップの画面が、API を呼ぶ', text: '`MapDialog` の `useEffect` が、選ばれた棚の番号(`shelfId`)で `fetchShelf()` を呼びます。' },
+    queries: [
+      { title: '棚の情報を読む', table: 'parts_shelf', sqlMsg: 'SELECT ps.id, z.name AS zone_name, a.code AS address_code, … FROM parts_shelf ps JOIN address a … JOIN zone z … WHERE ps.id = 1',
+        send: '棚の段数・列数・マップ上の位置と、所番地・工区の名前を、`JOIN` で 1 回に読みます。', db: '`parts_shelf` から 1 行を探し、`address`、`zone` の順につなげます。', rows: 'parts_shelf の 1 行(工区・所番地つき)', back: '`fetchone()` で 1 行を受け取ります。無ければ `404`(main.py:286)を返します。' },
+      { title: '棚に置かれたボルトを読む', table: 'bolt_shelf', sqlMsg: 'SELECT bs.slot_row, bs.slot_col, b.id, b.name, … FROM bolt_shelf bs JOIN bolt b … JOIN supplier s … WHERE bs.parts_shelf_id = 1',
+        send: '棚のマス(段・列)に置かれたボルトを、埋まっているマスだけ読みます。空のマスは、画面側で描きます。', db: '`bolt_shelf` から、この棚のマスを集め、`bolt` と `supplier` につなげます。', rows: '埋まっているマス(段・列とボルト)', back: '`cells` のリストに組み直します(main.py:299-306)。' },
+    ],
+    resp: '{ "id": …, "zone_name": …, "shelf_rows": …, "shelf_cols": …, "cells": [{ "slot_row", "slot_col", "bolt": {…} }, …] }',
+    retText: '`shelf` の辞書を返すと、FastAPI が `ShelfDetail` の形か確かめて、JSON にします。',
+    clientNote: '', render: { text: '`setLoadedShelf` で状態を更新すると、棚の絵(段 × 列の格子)が描かれます。' },
+  },
+];
+
+/* ステップの組み立て */
+function build(sc, env) {
+  const prod = env === 'prod';
+  const k = sc.id;
+  const steps = [];
+  const add = (o) => steps.push(o);
+  const reqMsg = `${sc.method} ${sc.url}`;
+
+  add({ s: 0, lane: 'req', title: sc.trigger.title, text: sc.trigger.text, snip: `${k}.trig`, msg: null });
+  if (sc.caller) add({ s: 0, lane: 'req', title: sc.caller.title, text: sc.caller.text, snip: `${k}.caller`, msg: null });
+  add({ s: 0, lane: 'req', title: 'fetch() で依頼を出す',
+    text: `api.ts の \`${sc.fn}()\` が \`fetch()\` を呼びます。URL は \`/api/…\` だけで、ドメインは書きません(本番でも開発中でも、同じ形にするためです)。`,
+    snip: `${k}.fetch`, msg: reqMsg, dir: 'req' });
+  add({ s: 1, lane: 'req', title: prod ? 'Vercel が backend に回す' : 'Vite が FastAPI に転送する',
+    text: prod
+      ? 'URL が `/api/` で始まるので、`vercel.json` の `rewrites` が、依頼を FastAPI(backend)に渡します。それ以外の URL は、画面(frontend)に渡します。'
+      : '開発中は、Vite の開発サーバーが、`/api` で始まる依頼を `http://127.0.0.1:8000`(uvicorn で動かす FastAPI)に転送します。',
+    snip: prod ? 'common.edge.prod' : 'common.edge.local', msg: reqMsg, dir: 'req' });
+  add({ s: 2, lane: 'req', title: 'FastAPI がルートを見つける',
+    text: '`@app.get(…)` に書いた URL の形と照合して、合う関数を呼びます。' + (sc.param ? '`{…}` の部分は、型(`int`)に合わせて数値にして、引数として渡します(数字にできなければ 422 を返します)。' : ''),
+    snip: `${k}.route`, msg: `→ ${sc.call}`, dir: 'req' });
+  add({ s: 2, lane: 'req', title: 'DB に接続する',
+    text: '`with get_cursor()` が、リクエストごとに DB へ接続します(サーバーレスでは、接続を持ち越せないためです)。接続先は環境変数 `DATABASE_URL` で、本番は Neon、ローカルは自分の PostgreSQL です。',
+    snip: 'common.cursor', msg: 'DATABASE_URL に接続', dir: 'req' });
+
+  const n = sc.queries.length;
+  sc.queries.forEach((q, i) => {
+    const sq = `${k}.q${i + 1}`;
+    add({ s: 3, lane: 'req', title: `SQL ${i + 1}/${n}: ${q.title}`, text: q.send, snip: sq, msg: q.sqlMsg, dir: 'req' });
+    add({ s: 3, lane: 'res', title: `DB が ${q.table} を読む`, text: q.db + ' テーブルの定義は `schema.sql` にあります。', snip: `t.${q.table}`, msg: q.rows, dir: 'res', file: 'schema' });
+    add({ s: 2, lane: 'res', title: '行が Python に戻る', text: q.back, snip: sq + 'b', msg: q.rows, dir: 'res' });
+    if (i < n - 1) {
+      add({ s: 2, lane: 'req', title: '次の SQL へ', text: `このリクエストは SQL を ${n} 回使います。結果を受け取ったので、次の SQL を送ります。`, snip: `${k}.q${i + 2}`, msg: '', dir: 'req' });
+    }
+  });
+
+  add({ s: 2, lane: 'res', title: 'JSON にして返す', text: sc.retText + ' 返す形に合わない項目は、落とされます。', snip: `${k}.ret`, msg: '200 OK  ' + sc.resp, dir: 'res' });
+  add({ s: 1, lane: 'res', title: prod ? 'Vercel がそのまま返す' : 'Vite がそのまま返す',
+    text: 'レスポンスは、来た道を逆に戻ります。内容は、そのままです。',
+    snip: prod ? 'common.edge.prod' : 'common.edge.local', msg: '200 OK  application/json', dir: 'res' });
+  add({ s: 0, lane: 'res', title: 'レスポンスを受け取る',
+    text: '`response.ok` で 200 台かを確かめ、`response.json()` で JSON を JavaScript の値にします。失敗したときは、画面に出すエラーを投げます。' + sc.clientNote,
+    snip: `${k}.client`, msg: '200 OK', dir: 'res' });
+  add({ s: 0, lane: 'res', title: '画面が更新される', text: sc.render.text, snip: `${k}.render`, msg: '画面に表示', dir: 'res' });
+  return steps;
+}
+
+/* 画面の部品 */
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const rich = (s) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
+const base = (p) => p.split('/').pop();
+const pct = (v, total) => (v / total * 100) + '%';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let sci = 0, env = 'prod', idx = 0, playing = !reduced, speed = 1, steps = [], timer = null;
+const MOVE = 800, DWELL = 2800;
+
+function drawBoard() {
+  const board = $('board');
+  board.querySelectorAll('.station,.glabel').forEach((e) => e.remove());
+  const st = stations(env);
+  st.forEach((s, i) => {
+    const d = document.createElement('div');
+    d.className = 'station';
+    d.id = 'st' + i;
+    d.style.cssText = `left:${pct(CX[i] - BW / 2, W)};top:${pct(70, H)};width:${pct(BW, W)};height:${pct(230, H)};--c:${COLORS[i]}`;
+    d.innerHTML = `${ICONS[i]}<div class="name">${esc(s.name)}</div><div class="role">${esc(s.role)}</div><div class="file">${esc(s.file)}</div>`;
+    board.insertBefore(d, $('chip'));
+  });
+  const q = ['HTTP', '転送', 'SQL'], r = ['200 · JSON', 'JSON', '行(rows)'];
+  for (let i = 0; i < 3; i++) {
+    const mid = (CX[i] + CX[i + 1]) / 2;
+    [[q[i], YQ - 22, 'q'], [r[i], YS + 8, 'r']].forEach(([t, y, c]) => {
+      const l = document.createElement('div');
+      l.className = 'glabel ' + c;
+      l.style.cssText = `left:${pct(mid, W)};top:${pct(y, H)}`;
+      l.textContent = t;
+      board.insertBefore(l, $('chip'));
+    });
+  }
+}
+
+function drawLanes() {
+  const svg = $('lanes');
+  svg.querySelectorAll('line').forEach((e) => e.remove());
+  for (let i = 0; i < 3; i++) {
+    const a = CX[i] + BW / 2, b = CX[i + 1] - BW / 2;
+    svg.insertAdjacentHTML('beforeend',
+      `<line x1="${a}" y1="${YQ}" x2="${b - 2}" y2="${YQ}" stroke-width="2" marker-end="url(#ah-req)" style="stroke:var(--req)"/>` +
+      `<line x1="${b}" y1="${YS}" x2="${a + 2}" y2="${YS}" stroke-width="2" marker-end="url(#ah-res)" style="stroke:var(--res)"/>`);
+  }
+}
+
+function drawTabs() {
+  $('tabs').innerHTML = SC.map((s, i) =>
+    `<button type="button" role="tab" class="chipbtn" aria-selected="${i === sci}" data-i="${i}">${esc(s.tab)}</button>`).join('');
+}
+
+function codeHtml(sn) {
+  return sn.segs.map((seg, si) => {
+    const rows = seg.lines.map((t, j) => {
+      const no = seg.from + j;
+      return `<div class="row${no === sn.hl ? ' hl' : ''}"><span class="ln">${no}</span><span>${esc(t)}</span></div>`;
+    }).join('');
+    return (si ? '<div class="sep">⋯</div>' : '') + rows;
+  }).join('');
+}
+
+function render() {
+  const sc = SC[sci], s = steps[idx], sn = SN[s.snip];
+  const x = CX[s.s], y = s.lane === 'req' ? YQ : YS;
+  const board = $('board'), ball = $('ball'), chip = $('chip');
+
+  board.style.setProperty('--move', (MOVE / speed) + 'ms');
+  ball.style.left = pct(x, W);
+  ball.style.top = pct(y, H);
+  ball.className = 'ball ' + s.lane;
+  document.querySelectorAll('.station').forEach((e, i) => e.classList.toggle('on', i === s.s));
+
+  const stName = stations(env)[s.s].name;
+  const where = `${base(sn.file)}:${sn.hl}`;
+  chip.innerHTML = `<span class="f">${esc(where)}</span><span class="t">${esc(s.title)}</span>` + (s.msg ? `<span class="m">${esc(s.msg)}</span>` : '');
+  const bw = board.offsetWidth, bx = x / W * bw, cw = chip.offsetWidth;
+  const left = Math.max(4, Math.min(bx - cw / 2, bw - cw - 4));
+  chip.style.left = left + 'px';
+  chip.style.setProperty('--ax', Math.max(12, Math.min(bx - left, cw - 12)) + 'px');
+
+  const segs = sn.segs.map((g) => g.lines.length > 1 ? `${g.from}-${g.from + g.lines.length - 1}` : `${g.from}`).join(', ');
+  $('detail').innerHTML =
+    `<div class="eyebrow" style="--c:${COLORS[s.s]}"><span class="dot"></span><span>ステップ ${idx + 1} / ${steps.length} ・ ${esc(stName)}</span></div>` +
+    `<h2>${esc(s.title)}</h2><p>${rich(s.text)}</p>` +
+    `<div class="where">${esc(sn.file)} : ${esc(segs)}</div>` +
+    `<div class="code" tabindex="0" role="region" aria-label="コード">${codeHtml(sn)}</div>` +
+    (s.msg ? `<div class="msg"><span class="k">${s.dir === 'res' ? '運んでいるもの(結果)' : '運んでいるもの(依頼)'}</span><span class="v ${s.dir || ''}">${esc(s.msg)}</span></div>` : '');
+
+  const list = $('steps');
+  list.querySelectorAll('li').forEach((li, i) => li.classList.toggle('on', i === idx));
+  const cur = list.children[idx];
+  if (cur) {
+    const t = cur.offsetTop, b = t + cur.offsetHeight;
+    if (t < list.scrollTop || b > list.scrollTop + list.clientHeight) list.scrollTop = Math.max(0, t - list.clientHeight / 2);
+  }
+  $('scrub').value = idx;
+  $('count').textContent = `${idx + 1} / ${steps.length}`;
+  $('play').textContent = playing ? '一時停止' : (idx >= steps.length - 1 ? 'もう一度' : '再生');
+
+  const sc2 = $('scroller');
+  if (sc2.scrollWidth > sc2.clientWidth) sc2.scrollTo({ left: Math.max(0, bx - sc2.clientWidth / 2), behavior: reduced ? 'auto' : 'smooth' });
+}
+
+function drawSteps() {
+  $('steps').innerHTML = steps.map((s, i) =>
+    `<li style="--c:${COLORS[s.s]}"><button type="button" data-i="${i}"><span class="n">${i + 1}</span><span class="s">${esc(s.title)}</span></button></li>`).join('');
+  $('scrub').max = steps.length - 1;
+}
+
+function schedule() {
+  clearTimeout(timer);
+  if (!playing) return;
+  timer = setTimeout(() => {
+    if (idx < steps.length - 1) { idx++; render(); schedule(); }
+    else { playing = false; render(); }
+  }, (MOVE + DWELL) / speed);
+}
+
+function go(i, keepPlaying) {
+  idx = Math.max(0, Math.min(steps.length - 1, i));
+  if (!keepPlaying) playing = false;
+  render();
+  schedule();
+}
+
+function load() {
+  steps = build(SC[sci], env);
+  idx = 0;
+  drawTabs(); drawBoard(); drawSteps();
+  $('env-prod').setAttribute('aria-pressed', env === 'prod');
+  $('env-local').setAttribute('aria-pressed', env === 'local');
+  render(); schedule();
+}
+
+$('tabs').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-i]'); if (!b) return;
+  sci = +b.dataset.i; playing = !reduced; load();
+});
+$('env-prod').addEventListener('click', () => { env = 'prod'; load(); });
+$('env-local').addEventListener('click', () => { env = 'local'; load(); });
+$('steps').addEventListener('click', (e) => { const b = e.target.closest('button[data-i]'); if (b) go(+b.dataset.i); });
+$('prev').addEventListener('click', () => go(idx - 1));
+$('next').addEventListener('click', () => go(idx + 1));
+$('scrub').addEventListener('input', (e) => go(+e.target.value));
+$('speed').addEventListener('change', (e) => { speed = +e.target.value; render(); schedule(); });
+$('play').addEventListener('click', () => {
+  if (playing) { playing = false; render(); clearTimeout(timer); return; }
+  if (idx >= steps.length - 1) idx = 0;
+  playing = true; render(); schedule();
+});
+document.addEventListener('keydown', (e) => {
+  const t = e.target.tagName;
+  if (t === 'INPUT' || t === 'SELECT' || t === 'TEXTAREA') return;
+  if (e.key === 'ArrowRight') { e.preventDefault(); go(idx + 1); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); go(idx - 1); }
+  else if (e.key === ' ' && t !== 'BUTTON') { e.preventDefault(); $('play').click(); }
+});
+addEventListener('resize', render);
+
+// 「アプリに戻る」: アプリのリンクから開かれたときは、このタブを閉じて元のタブに戻る
+// (リンクで移ると、アプリのタブが増えていくため)。直接開いたときは、普通のリンクとして動く。
+// 「アプリから開かれたか」は、参照元(document.referrer)が同じサイトかで見分ける。
+// target="_blank" のリンクは、標準で window.opener を渡さない(noopener)ので、opener は使えない
+const openedFromApp = (() => {
+  try { return !!document.referrer && new URL(document.referrer).origin === location.origin; } catch { return false; }
+})();
+const back = $('back');
+if (back) {
+  back.addEventListener('click', (e) => {
+    if (!openedFromApp) return;
+    e.preventDefault();
+    window.close();
+    setTimeout(() => { $('backmsg').hidden = false; }, 300);
+  });
+}
+
+drawLanes();
+load();
+</script>
+
+</body>
+</html>
