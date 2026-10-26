@@ -65,6 +65,15 @@ FROM (VALUES
 ) AS p (name, front_image_path, back_image_path, area_x, area_y, area_w, area_h)
 CROSS JOIN (SELECT id FROM vehicle WHERE name = 'ミナモ(軽自動車)') AS v;
 
+-- ツキカゲ(セダン)の部位(押せる範囲は、車両画像 tsukikage.png に対する割合)
+INSERT INTO vehicle_part (vehicle_id, name, front_image_path, back_image_path, area_x, area_y, area_w, area_h)
+SELECT v.id, p.name, p.front_image_path, p.back_image_path, p.area_x, p.area_y, p.area_w, p.area_h
+FROM (VALUES
+    ('左F/D アウターハンドル', '/images/parts/tsukikage_handle_front.jpg',   '/images/parts/tsukikage_handle_back.jpg',   0.4414, 0.4395, 0.0820, 0.0723),
+    ('左テールランプ',         '/images/parts/tsukikage_taillamp_front.jpg', '/images/parts/tsukikage_taillamp_back.jpg', 0.8854, 0.4395, 0.0684, 0.0762)
+) AS p (name, front_image_path, back_image_path, area_x, area_y, area_w, area_h)
+CROSS JOIN (SELECT id FROM vehicle WHERE name = 'ツキカゲ(セダン)') AS v;
+
 -- ボルト(20 種類。部品番号は 9001-系統-連番、背番号は各メーカーが 101、102、103 の順。画像は AI 生成)
 -- 系統: 0001 = 六角フランジ M6×16、0002 = M6×10、0003 = M8×25(ワッシャー付き)、0004 = M12×1.5 ナット、0005 = M6×20(ワッシャー一体)
 -- 各系統の先頭が、ミナモに使う 5 種類(A〜E)。残りは、間違えそうな仲間(類似ボルト)
@@ -126,6 +135,21 @@ JOIN vehicle v ON v.id = p.vehicle_id AND v.name = 'ミナモ(軽自動車)'
 JOIN bolt b ON b.part_number = m.part_number
 ORDER BY p.id, m.side, m.y, m.x;
 
+-- ツキカゲ(セダン)のボルトの取り付け位置(表にはボルトなし。裏のみ)
+-- アウターハンドル: 同じボルト(六角フランジボルト M6×12)が 2 本。テールランプ: 銀(M6×20)と黒(M6×25)が 1 本ずつ
+INSERT INTO bolt_mount (vehicle_part_id, side, x, y, bolt_id)
+SELECT p.id, m.side, m.x, m.y, b.id
+FROM (VALUES
+    ('左F/D アウターハンドル', 'back', 0.3413, 0.5117, '9001-0002-0004'),
+    ('左F/D アウターハンドル', 'back', 0.5081, 0.5117, '9001-0002-0004'),
+    ('左テールランプ',         'back', 0.2645, 0.2271, '9001-0005-0002'),
+    ('左テールランプ',         'back', 0.7230, 0.6841, '9001-0005-0004')
+) AS m (part_name, side, x, y, part_number)
+JOIN vehicle_part p ON p.name = m.part_name
+JOIN vehicle v ON v.id = p.vehicle_id AND v.name = 'ツキカゲ(セダン)'
+JOIN bolt b ON b.part_number = m.part_number
+ORDER BY p.id, m.side, m.y, m.x;
+
 -- 部品棚への配置(どのボルトを、どの棚の、どのマスに置くか。段 = slot_row、列 = slot_col)
 -- 似たボルトを、同じ棚に並べて置く(間違えやすい状況)。A は前部と後部、D は足回りと後部の、2 か所に置く(多対多)
 -- 前部工区 = ヘッドランプ(A、B の系統)、足回り工区 = ホイールナット(D)、後部工区 = Rr バンパー(E)、内装工区 = ミラー(C)
@@ -153,7 +177,11 @@ FROM (VALUES
     ('9001-0003-0001', '41', '401', 1, 1),
     ('9001-0003-0002', '41', '401', 1, 2),
     ('9001-0003-0003', '41', '401', 1, 3),
-    ('9001-0003-0004', '41', '401', 2, 1)
+    ('9001-0003-0004', '41', '401', 2, 1),
+    -- ツキカゲの部位(アウターハンドル、テールランプ)で使うボルトを、2 つめの工区にも置く
+    ('9001-0002-0004', '41', '401', 2, 2),
+    ('9001-0005-0002', '11', '102', 2, 2),
+    ('9001-0005-0004', '11', '102', 2, 3)
 ) AS p (part_number, address_code, shelf_no, slot_row, slot_col)
 JOIN bolt b ON b.part_number = p.part_number
 JOIN address a ON a.code = p.address_code
