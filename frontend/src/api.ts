@@ -14,7 +14,7 @@ export async function fetchVehicles(signal: AbortSignal): Promise<Vehicle[]> {
 }
 
 // 車両の画像の上の、押せる範囲(左上の角と幅・高さ。画像に対する 0〜1 の割合)
-export type Area = {
+type Area = {
   x: number
   y: number
   w: number
@@ -42,14 +42,14 @@ export async function fetchVehicleParts(
 // 部位の画像は、表(外側)と裏(内側)の 2 枚
 export type Side = 'front' | 'back'
 
-export type BoltSummary = {
+type BoltSummary = {
   id: number
   name: string
   image_path: string
 }
 
 // 部位の画像の上の、ボルトの取り付け位置(ボルトの頭の中心。画像に対する 0〜1 の割合)
-export type Mount = {
+type Mount = {
   id: number
   side: Side
   x: number
@@ -78,7 +78,7 @@ export async function fetchVehiclePart(
 }
 
 // ボルトが置かれている部品棚と、棚の中のマス(段・列)。map_x、map_y は、工場マップの画像の上の位置(割合)
-export type ShelfPlacement = {
+type ShelfPlacement = {
   parts_shelf_id: number
   zone_name: string
   address_code: string
@@ -92,7 +92,7 @@ export type ShelfPlacement = {
 }
 
 // 見た目や置き場所が似ていて、間違えやすいボルト(違いの説明つき)
-export type SimilarBolt = {
+type SimilarBolt = {
   id: number
   part_number: string
   name: string
@@ -124,7 +124,7 @@ export async function fetchBolt(boltId: number, signal: AbortSignal): Promise<Bo
 }
 
 // 部品棚の絵(段 × 列の格子)を描くための情報。埋まっているマスだけが入っている(空のマスは、画面側で描く)
-export type ShelfCell = {
+type ShelfCell = {
   slot_row: number
   slot_col: number
   bolt: {

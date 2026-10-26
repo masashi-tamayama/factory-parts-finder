@@ -9,14 +9,12 @@ type Props = {
   // 押す場所と吹き出しを、別の場所に置きたいとき(押す場所の情報を隠したくないとき)に、'mark' と 'bubble' を別々に置く
   parts?: 'all' | 'mark' | 'bubble'
   // 吹き出しを出す向き。
-  // 'top' / 'bottom' = 押す場所の上・下、'right' = 押す場所の右
+  // 'bottom' = 押す場所の下、'right' = 押す場所の右
   // 'inside' = 枠の内側の左上、'inside-bottom' = 枠の内側の左下(枠が大きくて、外に出せないとき。車両や部位の画像など)。
   //   この 2 つは、文を 1 行にする(2 行だと背が高くなって、車などの絵に被るため。幅で切り替えると、ブラウザの幅によって、動きが変わってしまう)
-  side?: 'top' | 'bottom' | 'right' | 'inside' | 'inside-bottom'
-  // 吹き出しを、押す場所の左端・右端のどちらにそろえるか('top' / 'bottom' のとき)
+  side?: 'bottom' | 'right' | 'inside' | 'inside-bottom'
+  // 吹き出しを、押す場所の左端・右端のどちらにそろえるか('bottom' のとき)
   align?: 'start' | 'end'
-  // 押す場所を、枠で囲むか(複数の場所に枠をつけるときは、false にして、枠は呼び出し側でつける)
-  ring?: boolean
   // 押すだけでは次に進まない手順(見るだけの手順)に、「次へ」のボタンを出す
   nextLabel?: string
   onNext?: () => void
@@ -27,7 +25,6 @@ const BADGE =
   'flex size-8 items-center justify-center rounded-full bg-accent-600 text-base font-bold text-white shadow-md'
 
 const BUBBLE_POSITIONS = {
-  top: 'bottom-full mb-4',
   bottom: 'top-full mt-3',
   right: 'top-16 left-full ml-8',
   inside: 'top-5 left-6',
@@ -39,7 +36,6 @@ export function GuideHint({
   parts = 'all',
   side = 'bottom',
   align = 'start',
-  ring = true,
   nextLabel,
   onNext,
   onSkip,
@@ -48,11 +44,11 @@ export function GuideHint({
   const inside = side === 'inside' || side === 'inside-bottom'
   // 吹き出しだけを出すときや、枠の内側に出すときは、番号を吹き出しの角につける
   const badgeOnBubble = parts === 'bubble' || inside
-  const horizontal = side === 'top' || side === 'bottom' ? (align === 'start' ? 'left-0' : 'right-0') : ''
+  const horizontal = side === 'bottom' ? (align === 'start' ? 'left-0' : 'right-0') : ''
 
   return (
     <div className="pointer-events-none absolute inset-0 z-30">
-      {parts !== 'bubble' && ring && <div className="absolute -inset-1 animate-pulse rounded-xl ring-4 ring-accent-500" />}
+      {parts !== 'bubble' && <div className="absolute -inset-1 animate-pulse rounded-xl ring-4 ring-accent-500" />}
       {parts !== 'bubble' && !badgeOnBubble && (
         <span aria-hidden className={`absolute -top-3 -left-3 ${BADGE}`}>
           {step}

@@ -140,11 +140,6 @@ class ShelfDetail(BaseModel):
     cells: list[ShelfCell]
 
 
-@app.get("/api/health")
-def health():
-    return {"status": "ok"}
-
-
 @app.get("/api/vehicles", response_model=list[Vehicle])
 def list_vehicles():
     with get_cursor() as cur:
