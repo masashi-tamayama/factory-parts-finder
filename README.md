@@ -60,6 +60,94 @@ API の説明ページ(FastAPI の自動生成)は、`/api/docs` で見られま
    npm run dev
    ```
 
+## データベース
+
+PostgreSQL の 10 テーブルです。テーブル定義は [backend/schema.sql](backend/schema.sql)、ダミーデータは [backend/seed.sql](backend/seed.sql) にあります。
+
+```mermaid
+erDiagram
+    zone ||--o{ address : "所番地を持つ"
+    address ||--o{ parts_shelf : "棚を持つ"
+    parts_shelf ||--o{ bolt_shelf : "ボルトを収める"
+    bolt_shelf }o--|| bolt : "置かれる"
+    supplier ||--o{ bolt : "製造する"
+    bolt ||--o{ similar_bolt : "bolt_id"
+    bolt ||--o{ similar_bolt : "similar_bolt_id"
+    bolt_mount }o--|| bolt : "取り付けられる"
+    vehicle_part ||--o{ bolt_mount : "取り付け位置を持つ"
+    vehicle ||--o{ vehicle_part : "部位を持つ"
+
+    vehicle {
+        int id PK
+        text name "車両名"
+        text image_path "車両の画像"
+    }
+    vehicle_part {
+        int id PK
+        int vehicle_id FK
+        text name "部位名"
+        text front_image_path "表(外側)の画像"
+        text back_image_path "裏(内側)の画像"
+        numeric area_x_y_w_h "車両画像の上の押せる範囲(0〜1 の割合)"
+    }
+    bolt_mount {
+        int id PK
+        int vehicle_part_id FK
+        int bolt_id FK
+        text side "front(表) / back(裏)"
+        numeric x_y "部位画像の上の位置(0〜1 の割合)"
+    }
+    bolt {
+        int id PK
+        text part_number UK "部品番号(0000-0000-0000)"
+        int supplier_id FK
+        text back_number "背番号(メーカーの中で一意)"
+        text name "ボルト名"
+        text spec "仕様"
+        text image_path "ボルトの画像"
+    }
+    supplier {
+        int id PK
+        text name UK "メーカー名"
+    }
+    similar_bolt {
+        int bolt_id PK, FK "小さい id 側"
+        int similar_bolt_id PK, FK "大きい id 側"
+        text difference_note "違いの説明"
+    }
+    bolt_shelf {
+        int bolt_id PK, FK
+        int parts_shelf_id PK, FK
+        int slot_row "棚の段"
+        int slot_col "棚の列"
+    }
+    parts_shelf {
+        int id PK
+        int address_id FK
+        text shelf_no "棚番号(所番地の中で一意)"
+        numeric map_x_y "工場マップの上の位置(0〜1 の割合)"
+        int shelf_rows "段数"
+        int shelf_cols "列数"
+    }
+    address {
+        int id PK
+        int zone_id FK
+        text code UK "所番地(2 桁)"
+    }
+    zone {
+        int id PK
+        text name UK "工区名"
+    }
+```
+
+`area_x_y_w_h`、`x_y`、`map_x_y` は、それぞれ `area_x`・`area_y`・`area_w`・`area_h`、`x`・`y`、`map_x`・`map_y` の列を、まとめて書いています。位置は、すべて画像に対する割合(0〜1)で持っています。
+
+- **ボルトと部品棚は多対多**です(`bolt_shelf`)。1 つのボルトが複数の棚に置かれ、1 つの棚に複数のボルトが入ります。
+- **類似ボルトは、1 組を 1 行**で持ちます(`bolt_id < similar_bolt_id`)。検索のときに、どちら側から見ても出るようにしています。
+- 工区・所番地・棚、メーカー・背番号を別のテーブルに分けて、食い違いが入らないようにしています。
+
+設計の理由は、[技術選定の記録](docs/tech-decisions.md)にあります。
+
 ## ドキュメント
 
 - [技術選定の記録](docs/tech-decisions.md): 使っている技術と、選んだ理由
