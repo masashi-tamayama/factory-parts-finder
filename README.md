@@ -39,6 +39,16 @@ API の説明ページ(FastAPI の自動生成)は、`/api/docs` で見られま
 | `GET /api/bolts/{id}` | ボルトの情報、置かれている部品棚、類似ボルト(違いの説明と、置かれている部品棚つき) |
 | `GET /api/parts-shelves/{id}` | 部品棚の段・列と、各マスのボルト |
 
+## リクエストの旅
+
+![リクエストの旅。ブラウザ、Vercel、FastAPI、Neon の間を、ボールが往復する](docs/images/request-journey.jpg)
+
+画面の操作で API が呼ばれてから、結果が画面に戻るまでの道を、ボールのアニメーションで見られるページです。止まった場所ごとに、実際のファイル名・行番号・SQL が出ます。
+
+- 公開中のアプリのヘッダーにある「リクエストの旅」から、新しいタブで開けます(https://factory-parts-finder.vercel.app/request-journey.html)
+- 「車両の一覧」「部位を押す」「ボルトを押す」など、5 つの操作を追えます
+- 本番(Vercel)と、ローカル(Vite)の切り替えもできます
+
 ## ローカルでの動かし方
 
 必要なもの: Node.js 24、Python 3.14、PostgreSQL
